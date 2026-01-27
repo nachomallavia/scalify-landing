@@ -1,0 +1,45 @@
+---
+import { Image } from "astro:assets";
+
+import MktImage from "@/assets/images/Hero copy.webp";
+import MetafiHero from "@/components/sections/metafi-hero";
+
+import FancyButton from "../elements/fancyButton.astro";
+import { GridBackground } from "../ui/grid-background";
+---
+
+<section id="scalify-hero" class="bg-[var(--scalify-green)] dark:bg-[var(--scalify-deep-blue)] relative border-b min-h-[90vh] pb-20">
+  <div id="about-us" class="flex flex-col lg:flex-row w-full h-full relative z-10">
+    <Image src={MktImage} alt="Scalify Hero" width={1920} class="lg:max-w-[66.66666666666666%] h-auto object-contain" />
+    <div class="container flex flex-col items-start justify-center px-12 lg:px-0 lg:pr-2 mb-4 pt-15 mx-auto gap-8">
+      <h1 class="text-foreground text-balance text-4xl font-extrabold leading-none tracking-tight sm:text-4xl lg:text-5xl">
+        Somos una empresa de marketing digital formada por profesionales jóvenes, creativos y en constante evolución.
+      </h1>
+      <p class="text-foreground text-balance text-left text-lg font-regular tracking-tight sm:text-2xl lg:text-xl">
+        Vivimos el cambio como parte del proceso y adaptamos nuestras estrategias de manera ágil a las dinámicas de cada plataforma. Trabajamos
+        combinando consultoría estratégica, generación de demanda, inteligencia artificial y tecnología para potenciar el crecimiento comercial de tu
+        empresa.
+      </p>
+      <FancyButton text="AGENDAR REUNIÓN" href="mailto:consultas@scalifyagencia.online" className="mt-4">
+        <svg
+          slot="icon"
+          class="w-7 h-7 text-white group-hover:text-[#27d456] transition-all duration-300 group-hover:scale-110 drop-shadow-lg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </FancyButton>
+    </div>
+  </div>
+
+  <div class="container relative z-5"></div>
+  <GridBackground className="absolute inset-0 z-0 mix-blend-screen opacity-30 md:opacity-50" />
+</section>

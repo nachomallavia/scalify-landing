@@ -1,0 +1,18 @@
+---
+import MetafiCta from "@/components/sections/matafi-cta";
+import MetafiCareersHero from "@/components/sections/metafi-careers-hero";
+import MetafiJobOpenings from "@/components/sections/metafi-job-openings";
+import MetafiMission from "@/components/sections/metafi-mission";
+import MetafiPerks from "@/components/sections/metafi-perks";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+
+import { SITE_DESCRIPTION, SITE_TITLE } from "../consts";
+---
+
+<DefaultLayout title={SITE_TITLE} description={SITE_DESCRIPTION}>
+  <MetafiCareersHero />
+  <MetafiMission />
+  <MetafiPerks />
+  <MetafiJobOpenings />
+  <MetafiCta />
+</DefaultLayout>

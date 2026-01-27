@@ -1,0 +1,16 @@
+---
+import MetafiCta from "@/components/sections/matafi-cta";
+import MetafiFaq from "@/components/sections/metafi-faq";
+import MetafiFeaturesIncluded from "@/components/sections/metafi-features-included";
+import MetafiPricingHero from "@/components/sections/metafi-pricing-hero";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+
+import { SITE_DESCRIPTION, SITE_TITLE } from "../consts";
+---
+
+<DefaultLayout title={SITE_TITLE} description={SITE_DESCRIPTION}>
+  <MetafiPricingHero client:load />
+  <MetafiFeaturesIncluded />
+  <MetafiFaq client:load />
+  <MetafiCta client:load />
+</DefaultLayout>

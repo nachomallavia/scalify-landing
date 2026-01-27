@@ -1,0 +1,48 @@
+---
+import { cn } from "@/lib/utils";
+
+const { text, href, className = "" } = Astro.props;
+---
+
+<!-- From Uiverse.io by Itskrish01 --><!-- Outer container: Centers the button and sets max width -->
+<div class={cn("flex flex-col gap-6 max-w-sm  relative z-10", className)}>
+  <!-- Main button element: Contains all hover effects, shadows, borders, and transitions -->
+  <a
+    href={href}
+    class="group relative p-4 rounded-2xl backdrop-blur-xl border-2 border-[#311dcc]/30 bg-gradient-to-br from-[#100076]/80 via-[#100076]/60 to-[#100076]/20 dark:to-white/20 shadow-2xl hover:shadow-[#100076]/60 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all duration-500 ease-out cursor-pointer hover:border-[#27d456]/60 overflow-hidden"
+  >
+    <!-- Animated shine effect: Sweeps from left to right on hover -->
+    <div
+      class="absolute inset-0 bg-gradient-to-r from-transparent via-[#27d456]/80 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"
+    >
+    </div>
+
+    <!-- Hover gradient overlay: Fades in a colored gradient background on hover -->
+    <div
+      class="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#311dcc]/10 via-[#27d456]/20 to-[#311dcc]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+    >
+    </div>
+
+    <!-- Content container: Holds icon, text, and arrow with proper layering (z-10) -->
+    <div class="relative z-10 flex items-center gap-4">
+      <!-- Icon container: Square box with gradient background that changes on hover -->
+      <div
+        class="p-3 rounded-lg bg-gradient-to-br from-[#311dcc]/30 to-[#100076]/10 backdrop-blur-sm group-hover:from-[#27d456]/40 group-hover:to-[#311dcc]/20 transition-all duration-300"
+      >
+        <slot name="icon" />
+      </div>
+      <!-- Text container: Flexible width, left-aligned text -->
+      <div class="flex-1 text-left">
+        <p class="text-white font-bold text-lg group-hover:text-white transition-colors duration-300 drop-shadow-lg">
+          {text}
+        </p>
+      </div>
+      <!-- Arrow icon: Fades in and slides right on hover -->
+      <div class="opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">
+        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="w-5 h-5 text-[#27d456]">
+          <path d="M9 5l7 7-7 7" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+        </svg>
+      </div>
+    </div>
+  </a>
+</div>

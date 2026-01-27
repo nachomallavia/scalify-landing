@@ -1,0 +1,53 @@
+---
+import { type CollectionEntry,getCollection } from "astro:content";
+
+import FeaturedPost from "@/components/sections/metafi-blog-featured";
+import MetafiBlogGrid from "@/components/sections/metafi-blog-grid";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+
+type BlogEntry = CollectionEntry<"blog">;
+
+const entries: BlogEntry[] = await getCollection("blog");
+
+const entryDate = (e: BlogEntry) =>
+  (e.data.date ?? e.data.published ?? new Date(0)) as Date;
+
+const allPosts = entries
+  .sort((a, b) => entryDate(b).valueOf() - entryDate(a).valueOf())
+  .map((p) => ({
+    slug: p.slug,
+    title:
+      (typeof p.data.title === "string" ? p.data.title.trim() : "") ||
+      p.slug.replace(/-/g, " "),
+    description: p.data.description ?? "",
+    date: (p.data.date ?? p.data.published)?.toISOString() ?? "",
+    author: p.data.author ?? "",
+    tags: Array.isArray(p.data.tags) ? p.data.tags : [],
+    coverImage: p.data.coverImage ?? p.data.image ?? "",
+    featured: Boolean(p.data.featured),
+    latest: Boolean(p.data.latest),
+    tagline: p.data.tagline ?? "",
+  }));
+
+const featured = allPosts.find((p) => p.featured) ?? null;
+
+const gridPosts = allPosts.map((p) => ({
+  slug: p.slug,
+  title: p.title,
+  tagline:
+    (typeof p.tagline === "string" && p.tagline.trim()) ||
+    (Array.isArray(p.tags) && typeof p.tags[0] === "string"
+      ? p.tags[0].trim()
+      : "") ||
+    "General",
+  intro: p.description, // use description as intro
+  author: p.author ?? "",
+  date: p.date ?? "",
+  coverImage: p.coverImage ?? "",
+}));
+---
+
+<DefaultLayout title="Blog" description="Latest posts">
+  {featured && <FeaturedPost post={featured} />}
+  <MetafiBlogGrid posts={gridPosts} client:visible />
+</DefaultLayout>

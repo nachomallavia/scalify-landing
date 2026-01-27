@@ -1,0 +1,18 @@
+---
+import MetafiCta from "@/components/sections/matafi-cta";
+import MetafiFeatureBenefits from "@/components/sections/metafi-feature-benefits";
+import MetafiFeaturePricing from "@/components/sections/metafi-feature-pricing";
+import MetafiFeaturesHero from "@/components/sections/metafi-features-section";
+import MetafiIntegrations from "@/components/sections/metafi-integrations";
+import MetafiFeaturesTabs from "@/components/sections/metafi-tabs";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+---
+
+<DefaultLayout title="Features">
+  <MetafiFeaturesHero />
+  <MetafiFeatureBenefits />
+  <MetafiFeaturesTabs client:load />
+  <MetafiFeaturePricing />
+  <MetafiIntegrations />
+  <MetafiCta />
+</DefaultLayout>

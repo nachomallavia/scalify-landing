@@ -1,0 +1,10 @@
+---
+import MetafiLogin from "@/components/sections/metafi-login";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+
+import { SITE_DESCRIPTION, SITE_TITLE } from "../consts";
+---
+
+<DefaultLayout title={SITE_TITLE} description={SITE_DESCRIPTION}>
+  <MetafiLogin client:load />
+</DefaultLayout>

@@ -1,0 +1,263 @@
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+html {
+  scroll-behavior: smooth; /* Adds smooth scrolling for all in-page anchor jumps */
+}
+
+:root {
+  /* Scalify Brand Colors */
+  --scalify-deep-blue: #100076; /* Primary brand color */
+  --scalify-light-blue: #311dcc; /* Secondary brand color */
+  --scalify-green: #27d456; /* Accent color */
+
+  /* Neutral palette for balance */
+  --background: oklch(0.99 0 0); /* #FCFCFC - Soft white */
+  --foreground: oklch(0.25 0.01 270); /* #252533 - Dark gray */
+  --card: oklch(1 0 0); /* #FFFFFF - Pure white */
+  --card-foreground: oklch(0.25 0.01 270); /* #252533 */
+  --popover: oklch(1 0 0); /* #FFFFFF */
+  --popover-foreground: oklch(0.25 0.01 270); /* #252533 */
+  --primary: oklch(0.24 0.16 285); /* #100076 - Scalify deep blue */
+  --primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --secondary: oklch(0.95 0.005 270); /* #F2F2F5 - Light neutral */
+  --secondary-foreground: oklch(0.25 0.01 270); /* #252533 */
+  --muted: oklch(0.96 0.003 270); /* #F5F5F7 - Very light gray */
+  --muted-foreground: oklch(0.55 0.02 270); /* #6B6B80 - Medium gray */
+  --accent: oklch(0.73 0.19 145); /* #27d456 - Scalify green */
+  --accent-foreground: oklch(0.99 0 0); /* #FCFCFC */
+  --destructive: oklch(0.55 0.22 25); /* #DC2626 - Red */
+  --destructive-foreground: oklch(1 0 0); /* #FFFFFF */
+  --border: oklch(0.92 0.003 270); /* #E5E5E8 - Light border */
+  --border-light: oklch(0.95 0.002 270); /* #F0F0F2 */
+  --input: oklch(0.94 0.003 270); /* #EBEBEF - Input background */
+  --ring: oklch(0.38 0.19 285); /* #311dcc - Scalify light blue */
+  --chart-1: oklch(0.73 0.19 145); /* #27d456 - Scalify green */
+  --chart-2: oklch(0.38 0.19 285); /* #311dcc - Scalify light blue */
+  --chart-3: oklch(0.24 0.16 285); /* #100076 - Scalify deep blue */
+  --chart-4: oklch(0.65 0.15 145); /* Lighter green variant */
+  --chart-5: oklch(0.45 0.17 285); /* Mid blue variant */
+  --logo-gray: oklch(0.6 0.02 270); /* #7A7A8E - Medium gray */
+  --tagline: oklch(0.38 0.19 285); /* #311dcc - Scalify light blue */
+  --features-hero-top: oklch(0.96 0.04 285); /* Very light blue tint */
+  --features-hero-top-0: oklch(0.96 0.04 285 / 0); /* Transparent variant */
+  --features-hero-bottom: oklch(0.98 0.01 270); /* Near white with slight tint */
+  --shadow-soft: 0 2px 8px 0 rgba(16, 0, 118, 0.08);
+  --shadow-light: 0 2px 4px 0 rgba(16, 0, 118, 0.04);
+  --success: oklch(0.73 0.19 145); /* #27d456 - Scalify green */
+  --grid-border: var(--border);
+  --grid-hover: oklch(0.97 0.01 270 / 0.7);
+
+  --font-inter: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+.dark {
+  --background: oklch(0.23 0.02 265);
+  --card: oklch(0.26 0.02 265);
+  --popover: oklch(0.26 0.02 265);
+  --foreground: oklch(0.98 0.01 255);
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.24 0.16 285); /* #100076 - Scalify deep blue */
+  --primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --secondary: oklch(0.29 0.02 265);
+  --secondary-foreground: var(--foreground);
+  --accent: oklch(0.73 0.19 145); /* #27d456 - Scalify green */
+  --accent-foreground: oklch(0.99 0 0); /* #FCFCFC */
+  --muted: oklch(0.28 0.015 265);
+  --muted-foreground: oklch(0.75 0.02 260);
+  --destructive: oklch(0.62 0.21 25.3);
+  --destructive-foreground: oklch(0.98 0.005 255);
+  --success: oklch(0.74 0.12 179.5);
+  --border: oklch(0.36 0.01 265);
+  --border-light: oklch(0.42 0.01 265);
+  --input: oklch(0.29 0.02 265);
+  --ring: oklch(0.92 0.02 255);
+  --chart-1: oklch(0.72 0.19 33);
+  --chart-2: oklch(0.7 0.1 183);
+  --chart-3: oklch(0.58 0.05 226);
+  --chart-4: oklch(0.78 0.11 87);
+  --chart-5: oklch(0.74 0.12 58);
+  --logo-gray: oklch(0.77 0.02 268.5);
+  --tagline: oklch(0.57 0.223 275.64);
+  --features-hero-top: oklch(0.32 0.015 268);
+  --features-hero-top-0: oklch(0.32 0.015 268 / 0);
+  --features-hero-bottom: oklch(0.28 0.015 265);
+  --shadow-soft: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-light: 0 2px 8px -1px rgba(0, 0, 0, 0.3);
+  --grid-border: var(--border-light); /* oklch(0.42 0.01 265) */
+  --grid-hover: oklch(0.92 0.02 255 / 0.1);
+}
+
+.force-light-vars {
+  /* base tokens (light) */
+  --primary: oklch(0.172 0.006 286.3); /* #0D0D12 */
+  --primary-foreground: oklch(1 0 89.88); /* #FFFFFF */
+  --foreground: oklch(0.172 0.006 286.3);
+  --muted-foreground: oklch(0.61 0.03 270); /* #666D80 */
+  --border: oklch(0.924 0.003 255.9);
+
+  /* also pin the *resolved* theme vars many utilities read */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+}
+
+@theme inline {
+  --font-inter: var(--font-inter);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-logo-gray: var(--logo-gray);
+
+  --color-tagline: var(--tagline);
+  --color-success: var(--success);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-light: var(--shadow-light);
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+
+  /* on small screens, full-width up to padding */
+  max-width: 100%;
+
+  /* when you hit your “desktop” breakpoint, cap it */
+  @media (min-width: 1200px) {
+    max-width: 1200px;
+  }
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  body {
+    font-family:
+      var(--font-inter),
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Helvetica,
+      Arial,
+      "Apple Color Emoji",
+      "Segoe UI Emoji";
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-inter), sans-serif;
+  }
+
+  .bg-features-hero {
+    /* 180deg = top ➜ bottom */
+    background-image: linear-gradient(180deg, var(--features-hero-top-0) 0%, var(--features-hero-bottom) 100%);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-light {
+    box-shadow: var(--shadow-light);
+  }
+}
+@layer components {
+  button {
+    cursor: pointer;
+  }
+  [class*="border"] {
+    @apply border-border;
+  }
+}
+
+body {
+  position: relative;
+}

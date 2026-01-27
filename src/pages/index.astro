@@ -1,0 +1,15 @@
+---
+import MetafiCta from "@/components/sections/matafi-cta";
+import MetafiFeatures from "@/components/sections/metafi-features.astro";
+import ScalifyPricing from "@/components/sections/scalify-pricing";
+import ScalifyHero from "@/components/sections/ScalifyHero.astro";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+---
+
+<DefaultLayout title="Home" description="Scalify - Agencia de Marketing Digital">
+  <!-- <MetafiHero client:load /> -->
+  <ScalifyHero />
+  <MetafiFeatures />
+  <ScalifyPricing client:load />
+  <MetafiCta />
+</DefaultLayout>

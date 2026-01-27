@@ -1,0 +1,40 @@
+---
+import { getCollection, render } from "astro:content";
+
+import MetafiBlogPost from "@/components/sections/metafi-blog-post";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: post,
+  }));
+}
+
+const post = Astro.props;
+const data = post.data;
+
+const title = data.title;
+const tagline = data.tagline ?? "";
+const intro = data.description ?? "";
+const author = data.author ?? "";
+const image = data.coverImage ?? data.image ?? "/images/blog/placeholder.webp";
+const published = (data.date ?? data.published)?.toISOString?.() ?? "";
+
+const { Content } = await render(post);
+---
+
+<DefaultLayout title={title} description={intro}>
+  <MetafiBlogPost
+    client:load
+    tagline={tagline}
+    title={title}
+    intro={intro}
+    image={image}
+    author={author}
+    published={published}
+  >
+    <Content />
+  </MetafiBlogPost>
+</DefaultLayout>

@@ -1,0 +1,132 @@
+---
+import { Image } from "astro:assets";
+import { ArrowUpRight, BarChart, Brain, Lightbulb, Target, TrendingUp, Users, Zap } from "lucide-react";
+
+import AdManagementImage from "@/assets/images/ads copy.webp";
+import AiImage from "@/assets/images/ai copy.webp";
+import VentasImage from "@/assets/images/ventas copy.webp";
+---
+
+<!-- Services Header -->
+<section id="scalify-services-intro" class="bg-background px-6 lg:px-0">
+  <div id="services" class="container px-0 py-16 sm:py-20 md:px-6 md:py-24">
+    <h2
+      class="text-foreground mx-auto mb-4 max-w-3xl text-balance text-center text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl"
+    >
+      ¿QUÉ HACEMOS?
+    </h2>
+
+    <p class="text-muted-foreground mx-auto mt-4 max-w-2xl text-center text-base sm:text-lg">
+      Ofrecemos soluciones integrales de marketing digital para escalar tu negocio
+    </p>
+  </div>
+</section>
+
+<!-- Service 1: Ad Management -->
+<section id="scalify-service-ads" class="bg-muted/30 border-border border-y px-6 lg:px-0">
+  <div class="container px-0 py-16 sm:py-20 md:px-6 md:py-24">
+    <div class="grid items-center gap-10 md:gap-16 lg:grid-cols-2">
+      <div class="flex justify-center lg:justify-start">
+        <div class="flex h-full w-full items-center justify-center rounded-full">
+          <Image src={AdManagementImage} alt="Ad Management" width={1200} height={800} class="h-auto w-full object-contain" />
+        </div>
+      </div>
+
+      <div class="max-w-xl text-center lg:text-left">
+        <h3 class="text-foreground mb-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
+          GESTIÓN Y OPTIMIZACIÓN DE PAUTA PUBLICITARIA
+        </h3>
+
+        <p class="text-muted-foreground text-base leading-relaxed sm:text-lg">
+          Campañas de alto rendimiento en Meta Ads, Google Ads y TikTok Ads, optimizadas para ventas, leads y crecimiento.
+        </p>
+
+        <div class="mt-6 flex flex-col gap-4">
+          <div class="text-accent flex items-center justify-center gap-4 lg:justify-start">
+            <TrendingUp className="h-8 w-8" />
+            <Target className="h-8 w-8" />
+            <BarChart className="h-8 w-8" />
+          </div>
+          <a href="mailto:consultas@scalifyagencia.online" class="w-full sm:w-auto">
+            <button class="bg-accent hover:bg-accent/90 text-accent-foreground w-full rounded-md px-6 py-3 font-semibold transition-colors">
+              Consultar Servicio
+            </button>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service 2: Strategic Consulting + AI -->
+<section id="scalify-service-consulting" class="bg-background border-border border-b px-6 lg:px-0">
+  <div class="container px-0 py-16 sm:py-20 md:px-6 md:py-24">
+    <div class="grid items-center gap-10 md:gap-16 lg:grid-cols-2">
+      <div class="max-w-xl text-center lg:order-1 lg:text-left">
+        <h3 class="text-foreground mb-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
+          CONSULTORÍA ESTRATÉGICA + INTELIGENCIA ARTIFICIAL
+        </h3>
+
+        <p class="text-muted-foreground text-base leading-relaxed sm:text-lg">
+          Analizamos tu ecosistema comercial, identificamos oportunidades y aplicamos tecnología e inteligencia artificial para acelerar tus
+          resultados.
+        </p>
+
+        <div class="mt-6 flex flex-col gap-4">
+          <div class="text-accent flex items-center justify-center gap-4 lg:justify-start">
+            <Brain className="h-8 w-8" />
+            <Lightbulb className="h-8 w-8" />
+            <Zap className="h-8 w-8" />
+          </div>
+          <a href="mailto:consultas@scalifyagencia.online" class="w-full sm:w-auto">
+            <button class="bg-accent hover:bg-accent/90 text-accent-foreground w-full rounded-md px-6 py-3 font-semibold transition-colors">
+              Consultar Servicio
+            </button>
+          </a>
+        </div>
+      </div>
+
+      <div class="flex justify-center lg:order-2 lg:justify-end">
+        <div class="flex h-full w-full items-center justify-center rounded-full">
+          <Image src={AiImage} alt="AI" width={1200} height={800} class="h-auto w-full object-contain" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service 3: Sales Team Integration -->
+<section id="scalify-service-sales" class="bg-muted/30 border-border border-b px-6 lg:px-0">
+  <div class="container px-0 py-16 sm:py-20 md:px-6 md:py-24">
+    <div class="grid items-center gap-10 md:gap-16 lg:grid-cols-2">
+      <div class="flex justify-center lg:justify-start">
+        <div class="flex h-full w-full items-center justify-center rounded-full">
+          <Image src={VentasImage} alt="Ventas" width={1200} height={800} class="h-auto w-full object-contain" />
+        </div>
+      </div>
+
+      <div class="max-w-xl text-center lg:text-left">
+        <h3 class="text-foreground mb-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
+          INTEGRACIÓN CON TU EQUIPO COMERCIAL
+        </h3>
+
+        <p class="text-muted-foreground text-base leading-relaxed sm:text-lg">
+          Analizamos tu proceso de ventas para detectar qué está pasando, mejorar la conversión y alinear marketing + ventas.
+        </p>
+
+        <div class="mt-6 flex flex-col gap-4">
+          <div class="text-accent flex items-center justify-center gap-4 lg:justify-start">
+            <Users className="h-8 w-8" />
+            <Target className="h-8 w-8" />
+            <ArrowUpRight className="h-8 w-8" />
+          </div>
+          <a href="mailto:consultas@scalifyagencia.online" class="w-full sm:w-auto">
+            <button class="bg-accent hover:bg-accent/90 text-accent-foreground w-full rounded-md px-6 py-3 font-semibold transition-colors">
+              Consultar Servicio
+            </button>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

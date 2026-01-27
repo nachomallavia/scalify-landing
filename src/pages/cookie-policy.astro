@@ -1,0 +1,16 @@
+---
+import LegalArticle from "@/components/sections/legal-article";
+import CookieContent from "@/content/cookie-policy.mdx";
+import DefaultLayout from "@/layouts/DefaultLayout.astro";
+---
+
+<DefaultLayout title="Cookie Policy" description="How we use cookies.">
+  <LegalArticle
+    overline="Legal"
+    title="Cookie Policy"
+    subtitle="What cookies are, the types we use, and how you can control them."
+    updatedAt="Updated Oct 2025"
+  >
+    <CookieContent />
+  </LegalArticle>
+</DefaultLayout>
