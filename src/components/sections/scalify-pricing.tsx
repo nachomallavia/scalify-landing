@@ -62,8 +62,10 @@ const PRICING_TIERS: PricingTier[] = [
 function PricingCard({ tier, featured }: { tier: PricingTier; featured?: boolean }) {
   return (
     <div
-      className={`bg-card border-border-light relative flex min-w-[280px] flex-shrink-0 snap-center flex-col rounded-[16px] border p-8 shadow-[0_2px_8px_-1px_rgba(13,13,18,0.04)] sm:min-w-[320px] md:min-w-0 ${
-        featured ? "border-primary/40 shadow-[0_8px_24px_-4px_rgba(16,0,118,0.15)]" : ""
+      className={`bg-card relative flex min-w-[280px] flex-shrink-0 snap-center flex-col rounded-[16px] border-2 p-8 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.12)] sm:min-w-[320px] md:min-w-0 dark:shadow-[0_8px_32px_-4px_rgba(0,0,0,0.5)] ${
+        featured
+          ? "border-accent shadow-[0_12px_48px_-8px_rgba(39,212,86,0.25)] dark:shadow-[0_12px_48px_-8px_rgba(39,212,86,0.6)]"
+          : "border-border-light"
       }`}
     >
       {featured && (
@@ -93,7 +95,7 @@ function PricingCard({ tier, featured }: { tier: PricingTier; featured?: boolean
 
       <Button
         size="lg"
-        className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "bg-primary hover:bg-primary/90"}`}
+        className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "border-border hover:bg-muted text-foreground border-2 bg-transparent"}`}
         asChild
       >
         <a href="mailto:consultas@scalifyagencia.online?subject=Consulta sobre plan {tier.name}">AGENDAR REUNIÓN</a>
@@ -176,7 +178,7 @@ export default function ScalifyPricing() {
           {/* Cards container */}
           <div
             ref={scrollContainerRef}
-            className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0"
+            className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pb-8 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0 md:pb-12"
           >
             {PRICING_TIERS.map((tier, index) => (
               <PricingCard key={index} tier={tier} featured={tier.name === "Grow"} />
