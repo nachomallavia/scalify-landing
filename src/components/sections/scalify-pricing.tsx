@@ -176,7 +176,7 @@ export default function ScalifyPricing() {
           {/* Cards container */}
           <div
             ref={scrollContainerRef}
-            className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0 md:pt-0"
+            className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0"
           >
             {PRICING_TIERS.map((tier, index) => (
               <PricingCard key={index} tier={tier} featured={tier.name === "Grow"} />
