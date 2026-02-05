@@ -4,12 +4,12 @@ import Banner from "@/components/sections/banner";
 import Footer from "@/components/sections/footer.astro";
 import Navbar from "@/components/sections/navbar";
 
-const { title, description } = Astro.props;
+const { title, description, image } = Astro.props;
 ---
 
 <html lang="en">
   <head>
-    <BaseHead title={title} description={description} />
+    <BaseHead title={title} description={description} image={image} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@200..900&display=swap" rel="stylesheet" />

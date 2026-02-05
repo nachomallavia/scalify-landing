@@ -44,7 +44,7 @@ export const SITE_METADATA = {
     siteName: "Scalify",
     images: [
       {
-        url: "/og-image.jpg",
+        url: "/og-home.webp",
         width: 1200,
         height: 630,
         alt: "Scalify - Agencia de Marketing Digital",
@@ -55,7 +55,7 @@ export const SITE_METADATA = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ["/og-image.jpg"],
+    images: ["/og-home.webp"],
     creator: "@scalify",
   },
 };
