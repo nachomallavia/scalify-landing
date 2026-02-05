@@ -17,7 +17,7 @@ const buttonVariants = cva(
         outline:
           'bg-background text-foreground border border-border shadow-xs hover:bg-muted',
         toggle:
-          'border rounded-full border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+          'rounded-full bg-secondary dark:bg-secondary-foreground shadow-xs hover:bg-accent dark:hover:bg-accent',
         secondary:
           'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost:
