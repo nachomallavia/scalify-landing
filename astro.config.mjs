@@ -10,7 +10,7 @@ import vercel from "@astrojs/vercel";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://example.com",
+  site: process.env.SITE_URL || "https://scalify-landing.vercel.app",
   integrations: [mdx(), sitemap(), react()],
   output: "static",
 
