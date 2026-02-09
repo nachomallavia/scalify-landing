@@ -2,6 +2,14 @@
 /**
  * CustomScrollEvent Component
  * Tracks scroll depth milestones: 25%, 50%, 75%, 100%
+ * 
+ * Usage:
+ * <CustomScrollEvent 
+ *   eventName="section_scroll_percent" 
+ *   scrollSectionName="Hero"
+ * >
+ *   <YourSection />
+ * </CustomScrollEvent>
  */
 
 import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
@@ -10,6 +18,7 @@ interface Props {
   eventName: string;
   eventData?: Record<string, any>;
   milestones?: number[];
+  scrollSectionName?: string;  // Identifies which section is being scrolled
   [key: string]: any;
 }
 
@@ -43,139 +52,174 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
 
 <script>
   /**
-   * Scroll depth tracking with debouncing
+   * HYBRID SCROLL TRACKING: IntersectionObserver + Scroll Listener
+   * 
+   * APPROACH:
+   * 1. IntersectionObserver detects when element is visible (prevents premature events)
+   * 2. Scroll listener calculates actual scroll progress (only when visible)
+   * 3. Scroll listener is attached/detached based on visibility (performance)
+   * 
+   * BENEFITS:
+   * - No premature events before DOMContentLoaded
+   * - Accurate scroll depth calculation
+   * - Better performance (scroll listener only active when needed)
+   * - Framework-agnostic (standard web APIs)
    */
   
-  // Use global flag to ensure only ONE set of listeners is attached
-  const globalFlag = '__analyticsScrollListenerAttached';
+  const globalFlag = '__analyticsScrollObserverAttached';
   const trackedMilestones = new Map<Element, Set<number>>();
+  const visibleElements = new Set<Element>();
+  let scrollHandler: (() => void) | null = null;
 
-  function debounce<T extends (...args: any[]) => void>(func: T, wait: number) {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return function executedFunction(...args: Parameters<T>) {
-      if (timeout !== null) {
-        clearTimeout(timeout);
+  function trackMilestone(
+    wrapper: Element,
+    milestone: number,
+    scrollPercent: number
+  ) {
+    const eventName = wrapper.getAttribute('data-scroll-event');
+    const eventDataStr = wrapper.getAttribute('data-scroll-data');
+    
+    if (!eventName || !eventDataStr) return;
+    
+    try {
+      const eventData = JSON.parse(eventDataStr);
+      eventData.scrollDepth = milestone;
+      eventData.scrollPercent = Math.round(scrollPercent);
+      
+      // Push to dataLayer
+      if (window.dataLayer) {
+        window.dataLayer.push(eventData);
       }
-      timeout = setTimeout(() => func(...args), wait);
-    };
+      
+      // Push to PostHog
+      if (window.posthog) {
+        const { event, ...properties } = eventData;
+        window.posthog.capture(event, properties);
+      }
+      
+      // Debug logging
+      if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+        console.log('[CustomScrollEvent] Milestone tracked:', eventData);
+      }
+    } catch (error) {
+      console.error('[CustomScrollEvent] Error parsing event data:', error);
+    }
+  }
+
+  function calculateScrollProgress(wrapper: Element): number {
+    const childElement = wrapper.firstElementChild as HTMLElement;
+    if (!childElement) return 0;
+    
+    const rect = childElement.getBoundingClientRect();
+    const elementHeight = rect.height;
+    const windowHeight = window.innerHeight;
+    
+    // Element not yet in viewport
+    if (rect.bottom < 0) return 100; // Scrolled past
+    if (rect.top > windowHeight) return 0; // Not yet reached
+    
+    // Calculate scroll progress
+    // scrollProgress = how far from top of viewport to top of element
+    // When element.top = windowHeight, progress = 0%
+    // When element.bottom = 0, progress = 100%
+    const scrollProgress = Math.max(0, windowHeight - rect.top);
+    const maxProgress = elementHeight + windowHeight;
+    
+    return Math.min((scrollProgress / maxProgress) * 100, 100);
+  }
+
+  function checkMilestones(wrapper: Element) {
+    const scrollPercent = calculateScrollProgress(wrapper);
+    
+    // Get milestones for this element
+    const milestonesStr = wrapper.getAttribute('data-scroll-milestones');
+    const milestones: number[] = milestonesStr ? JSON.parse(milestonesStr) : [25, 50, 75, 100];
+    
+    // Initialize tracked set
+    if (!trackedMilestones.has(wrapper)) {
+      trackedMilestones.set(wrapper, new Set());
+    }
+    
+    const tracked = trackedMilestones.get(wrapper)!;
+    const sortedMilestones = [...milestones].sort((a, b) => a - b);
+    
+    // Track milestones in order
+    for (const milestone of sortedMilestones) {
+      if (scrollPercent >= milestone && !tracked.has(milestone)) {
+        // Check if all previous milestones were tracked
+        const previousMilestones = sortedMilestones.filter(m => m < milestone);
+        const allPreviousTracked = previousMilestones.every(m => tracked.has(m));
+        
+        if (allPreviousTracked || previousMilestones.length === 0) {
+          trackMilestone(wrapper, milestone, scrollPercent);
+          tracked.add(milestone);
+          break; // One per scroll event
+        }
+      }
+    }
   }
 
   function handleScroll() {
-    const elements = document.querySelectorAll('[data-analytics-scroll]');
-    
-    elements.forEach(wrapper => {
-      const childElement = wrapper.firstElementChild as HTMLElement;
-      if (!childElement) return;
-      
-      const rect = childElement.getBoundingClientRect();
-      const elementHeight = rect.height;
-      const windowHeight = window.innerHeight;
-      
-      // Calculate scroll progress through the element
-      // 0% = top entering viewport (top = windowHeight)
-      // 100% = bottom exiting viewport (bottom = 0)
-      // Works for elements of any height (smaller, equal, or larger than viewport)
-      let scrollPercent = 0;
-      
-      // Element hasn't entered viewport yet (top is below viewport bottom)
-      if (rect.top > windowHeight) {
-        scrollPercent = 0;
-      }
-      // Element has completely exited viewport (bottom is above viewport top)
-      else if (rect.bottom <= 0) {
-        scrollPercent = 100;
-      }
-      // Element is currently visible (at least partially)
-      else {
-        // Calculate how much of the element has "entered" the viewport
-        // entered = 0 when top = windowHeight (just starting to enter)
-        // entered = elementHeight when bottom = 0 (bottom at viewport top, fully scrolled through)
-        // Math.min ensures we don't exceed elementHeight for elements smaller than viewport
-        const entered = Math.max(0, Math.min(elementHeight, windowHeight - rect.top));
-        
-        scrollPercent = (entered / elementHeight) * 100;
-      }
-      
-      // Get milestones for this element
-      const milestonesStr = wrapper.getAttribute('data-scroll-milestones');
-      const milestones: number[] = milestonesStr ? JSON.parse(milestonesStr) : [25, 50, 75, 100];
-      
-      // Initialize tracked set for this element
-      if (!trackedMilestones.has(wrapper)) {
-        trackedMilestones.set(wrapper, new Set());
-      }
-      
-      const tracked = trackedMilestones.get(wrapper)!;
-      
-      // Sort milestones in ascending order
-      const sortedMilestones = [...milestones].sort((a, b) => a - b);
-      
-      // Find the highest milestone that should be tracked
-      // Only track milestones in sequential order (can't skip milestones)
-      for (const milestone of sortedMilestones) {
-        if (scrollPercent >= milestone && !tracked.has(milestone)) {
-          // Check if all previous milestones have been tracked
-          const previousMilestones = sortedMilestones.filter(m => m < milestone);
-          const allPreviousTracked = previousMilestones.every(m => tracked.has(m));
-          
-          // Only track if all previous milestones were tracked (or this is the first one)
-          if (allPreviousTracked || previousMilestones.length === 0) {
-            const eventName = wrapper.getAttribute('data-scroll-event');
-            const eventDataStr = wrapper.getAttribute('data-scroll-data');
-            
-            if (eventName && eventDataStr) {
-              try {
-                const eventData = JSON.parse(eventDataStr);
-                eventData.scrollDepth = milestone;
-                eventData.scrollPercent = Math.round(scrollPercent);
-                
-                // Push to dataLayer
-                if (window.dataLayer) {
-                  window.dataLayer.push(eventData);
-                }
-                
-                // Push to PostHog
-                if (window.posthog) {
-                  const { event, ...properties } = eventData;
-                  window.posthog.capture(event, properties);
-                }
-                
-                // Debug logging
-                if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
-                  console.log('[CustomScrollEvent] Milestone tracked:', eventData);
-                }
-                
-                // Mark milestone as tracked
-                tracked.add(milestone);
-                
-                // Only track one milestone per scroll event to maintain sequential order
-                break;
-              } catch (error) {
-                console.error('[CustomScrollEvent] Error parsing event data:', error);
-              }
-            }
-          }
-        }
-      }
+    // Only check visible elements (tracked by IntersectionObserver)
+    visibleElements.forEach(wrapper => {
+      checkMilestones(wrapper);
     });
   }
 
-  function attachScrollListener() {
+  function initScrollTracking() {
     if ((window as any)[globalFlag]) return;
     
-    const debouncedScroll = debounce(handleScroll, 100);
-    window.addEventListener('scroll', debouncedScroll, { passive: true });
+    const wrappers = document.querySelectorAll('[data-analytics-scroll]');
     
-    // Check initial scroll position
-    handleScroll();
+    // Create IntersectionObserver to detect visibility
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const wrapper = entry.target.parentElement;
+          if (!wrapper || !wrapper.hasAttribute('data-analytics-scroll')) return;
+          
+          if (entry.isIntersecting) {
+            // Element became visible - add to tracking set
+            visibleElements.add(wrapper);
+            
+            // Check immediately in case already at a milestone
+            checkMilestones(wrapper);
+          } else {
+            // Element left viewport - remove from tracking set
+            visibleElements.delete(wrapper);
+          }
+        });
+      },
+      {
+        threshold: [0], // Just detect when element enters/exits viewport
+        rootMargin: '0px'
+      }
+    );
+    
+    // Observe all child elements
+    wrappers.forEach(wrapper => {
+      const childElement = wrapper.firstElementChild;
+      if (childElement) {
+        observer.observe(childElement);
+      }
+    });
+    
+    // Attach global scroll listener (only processes visible elements)
+    scrollHandler = () => handleScroll();
+    window.addEventListener('scroll', scrollHandler, { passive: true });
     
     (window as any)[globalFlag] = true;
+    
+    if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+      console.log('[CustomScrollEvent] Hybrid tracking initialized for', wrappers.length, 'elements');
+    }
   }
 
-  // Attach listener when DOM is ready
+  // Initialize AFTER DOMContentLoaded to ensure all content is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attachScrollListener);
+    document.addEventListener('DOMContentLoaded', initScrollTracking);
   } else {
-    attachScrollListener();
+    // DOM already loaded, but use setTimeout to ensure React components are hydrated
+    setTimeout(initScrollTracking, 100);
   }
 </script>

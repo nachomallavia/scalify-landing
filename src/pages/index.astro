@@ -13,8 +13,10 @@ import DefaultLayout from "@/layouts/DefaultLayout.astro";
   image="/og-home.webp"
 >
   <!-- <MetafiHero client:load /> -->
+
   <ScalifyHero />
-  <CustomScrollEvent eventName="section_scroll_percent" sectionName="ScalifyFeatures">
+
+  <CustomScrollEvent eventName="section_scroll_percent" scrollSectionName="ScalifyFeatures">
     <ScalifyFeatures />
   </CustomScrollEvent>
   <ScalifyPricing client:load />

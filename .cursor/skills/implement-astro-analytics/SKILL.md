@@ -188,7 +188,25 @@ import CustomFormEvent from '@/components/analytics/headless/CustomFormEvent.ast
 </CustomFormEvent>
 ```
 
-#### Example 4: Track Loops (Product Lists)
+#### Example 4: Track Scroll Depth
+
+```astro
+---
+import CustomScrollEvent from '@/components/analytics/headless/CustomScrollEvent.astro';
+---
+
+<CustomScrollEvent 
+  eventName="section_scroll_percent"
+  scrollSectionName="Hero"
+  milestones={[25, 50, 75, 100]}
+>
+  <section>
+    <!-- Your content -->
+  </section>
+</CustomScrollEvent>
+```
+
+#### Example 5: Track Loops (Product Lists)
 
 ```astro
 ---
@@ -317,6 +335,7 @@ PUBLIC_ANALYTICS_DEBUG=false
 <!-- Article read tracking -->
 <CustomScrollEvent 
   eventName="article_read"
+  scrollSectionName="Article"
   articleTitle={article.title}
   articleCategory={article.category}
   milestones={[25, 50, 75, 100]}

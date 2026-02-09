@@ -15,7 +15,10 @@
  * USAGE EXAMPLES:
  * 
  * Basic (default milestones):
- * <CustomScrollEvent eventName="article_read">
+ * <CustomScrollEvent 
+ *   eventName="section_scroll_percent"
+ *   scrollSectionName="Hero"
+ * >
  *   <article>
  *     <h1>Long Article</h1>
  *     <p>Content...</p>
@@ -25,6 +28,7 @@
  * Custom milestones:
  * <CustomScrollEvent 
  *   eventName="video_scroll"
+ *   scrollSectionName="VideoSection"
  *   milestones={[10, 50, 90]}
  * >
  *   <div className="video-section">...</div>
@@ -33,6 +37,7 @@
  * With additional data:
  * <CustomScrollEvent 
  *   eventName="product_description_read"
+ *   scrollSectionName="ProductDetails"
  *   productId={product.id}
  *   milestones={[25, 50, 75, 100]}
  * >
@@ -52,22 +57,9 @@ interface CustomScrollEventProps {
   eventName: string;
   eventData?: Record<string, any>;
   milestones?: number[];               // Scroll percentages to track (default: [25, 50, 75, 100])
+  scrollSectionName?: string;          // Identifies which section is being scrolled
   children: ReactNode;
   [key: string]: any;
-}
-
-// ============================================================================
-// HELPER: DEBOUNCE
-// ============================================================================
-
-function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  return function executedFunction(...args: Parameters<T>) {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(() => func(...args), wait);
-  } as T;
 }
 
 // ============================================================================
@@ -106,7 +98,7 @@ export function CustomScrollEvent({
   );
   
   // ============================================================================
-  // SCROLL TRACKING SETUP
+  // HYBRID TRACKING: IntersectionObserver + Scroll Listener
   // ============================================================================
   
   useEffect(() => {
@@ -118,71 +110,101 @@ export function CustomScrollEvent({
     if (!childRef.current) return;
     
     const childElement = childRef.current as HTMLElement;
+    let isVisible = false;
     
-    const handleScroll = () => {
-      if (!childElement) return;
-      
+    // Function to calculate scroll progress through element
+    const calculateScrollProgress = (): number => {
       const rect = childElement.getBoundingClientRect();
-      const elementHeight = childElement.scrollHeight || childElement.offsetHeight;
+      const elementHeight = rect.height;
       const windowHeight = window.innerHeight;
       
-      // Calculate scroll percentage for this element
-      const elementTop = rect.top + window.scrollY;
-      const elementBottom = elementTop + elementHeight;
-      const scrollPosition = window.scrollY + windowHeight;
+      // Element not yet in viewport
+      if (rect.bottom < 0) return 100; // Scrolled past
+      if (rect.top > windowHeight) return 0; // Not yet reached
       
-      let scrollPercent = 0;
-      if (scrollPosition >= elementBottom) {
-        scrollPercent = 100;
-      } else if (scrollPosition > elementTop) {
-        const visibleHeight = scrollPosition - elementTop;
-        scrollPercent = Math.min((visibleHeight / elementHeight) * 100, 100);
-      }
+      // Calculate scroll progress
+      // When element.top = windowHeight, progress = 0%
+      // When element.bottom = 0, progress = 100%
+      const scrollProgress = Math.max(0, windowHeight - rect.top);
+      const maxProgress = elementHeight + windowHeight;
       
-      // Check which milestones have been reached
-      milestones.forEach(milestone => {
-        if (scrollPercent >= milestone && !trackedMilestones.current.has(milestone)) {
-          // Track this milestone
-          const eventDataToSend = {
-            ...finalEventData,
-            scrollDepth: milestone,
-            scrollPercent: Math.round(scrollPercent),
-          };
-          
-          // Push to GTM
-          if (window.dataLayer) {
-            window.dataLayer.push(eventDataToSend);
-          }
-          
-          // Push to PostHog
-          if (window.posthog) {
-            const { event, ...properties } = eventDataToSend;
-            window.posthog.capture(event, properties);
-          }
-          
-          // Debug logging
-          if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
-            console.log('[CustomScrollEvent] Milestone tracked:', eventDataToSend);
-          }
-          
-          // Mark milestone as tracked
-          trackedMilestones.current.add(milestone);
-        }
-      });
+      return Math.min((scrollProgress / maxProgress) * 100, 100);
     };
     
-    // Debounce scroll handler for performance
-    const debouncedScroll = debounce(handleScroll, 100);
+    // Function to check and track milestones
+    const checkMilestones = () => {
+      if (!isVisible) return; // Only check when element is visible
+      
+      const scrollPercent = calculateScrollProgress();
+      const sortedMilestones = [...milestones].sort((a, b) => a - b);
+      
+      // Track milestones in sequential order
+      for (const milestone of sortedMilestones) {
+        if (scrollPercent >= milestone && !trackedMilestones.current.has(milestone)) {
+          // Check if all previous milestones were tracked
+          const previousMilestones = sortedMilestones.filter(m => m < milestone);
+          const allPreviousTracked = previousMilestones.every(m => trackedMilestones.current.has(m));
+          
+          if (allPreviousTracked || previousMilestones.length === 0) {
+            // Track this milestone
+            const eventDataToSend = {
+              ...finalEventData,
+              scrollDepth: milestone,
+              scrollPercent: Math.round(scrollPercent),
+            };
+            
+            // Push to GTM
+            if (window.dataLayer) {
+              window.dataLayer.push(eventDataToSend);
+            }
+            
+            // Push to PostHog
+            if (window.posthog) {
+              const { event, ...properties } = eventDataToSend;
+              window.posthog.capture(event, properties);
+            }
+            
+            // Debug logging
+            if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+              console.log('[CustomScrollEvent] Milestone tracked:', eventDataToSend);
+            }
+            
+            trackedMilestones.current.add(milestone);
+            break; // One milestone per scroll event
+          }
+        }
+      }
+    };
+    
+    // Create IntersectionObserver to detect visibility
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          isVisible = entry.isIntersecting;
+          
+          if (isVisible) {
+            // Element became visible - check immediately
+            checkMilestones();
+          }
+        });
+      },
+      {
+        threshold: [0], // Just detect when element enters/exits viewport
+        rootMargin: '0px'
+      }
+    );
+    
+    // Start observing
+    observer.observe(childElement);
     
     // Attach scroll listener
-    window.addEventListener('scroll', debouncedScroll, { passive: true });
-    
-    // Check initial scroll position
-    handleScroll();
+    const handleScroll = () => checkMilestones();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     
     // Cleanup
     return () => {
-      window.removeEventListener('scroll', debouncedScroll);
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
     };
   }, [eventName, milestones, finalEventData, isTestingMode]);
   
