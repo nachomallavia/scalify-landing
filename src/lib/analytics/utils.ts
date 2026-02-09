@@ -277,6 +277,19 @@ export function isAnalyticsReady(): { gtm: boolean; posthog: boolean } {
  *   productId: 123,
  *   productName: 'Red Shoe'
  * }
+ *
+ * EVENTDATA PATTERN:
+ * All event-specific properties are grouped inside an 'eventData' object.
+ * This ensures that each event completely replaces the previous event's
+ * data in GTM's dataLayer, preventing any cross-contamination.
+ * 
+ * Structure:
+ * - event: Event name (e.g., "cta_click")
+ * - environment: "testing" or "production"
+ * - eventData: { ...all event-specific properties }
+ * 
+ * Page-level properties (pageCategory, pageType) persist outside eventData
+ * and are set once during page load by AnalyticsSetup.
  */
 export function mergeEventData(
   eventName: string,
@@ -290,11 +303,16 @@ export function mergeEventData(
   // Add environment field for easy filtering
   const environment = isTestingMode ? "testing" : "production";
 
+  // Group all event-specific properties inside eventData object
+  const mergedEventData = {
+    ...eventData,
+    ...additionalProps,
+  };
+
   return {
     event: finalEventName,
     environment,
-    ...eventData,
-    ...additionalProps,
+    eventData: mergedEventData, // All event-specific props grouped here
   };
 }
 

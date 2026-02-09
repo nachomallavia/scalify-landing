@@ -1,16 +1,14 @@
+import { CustomClickEvent } from "@/components/analytics/react";
 import { Button } from "@/components/ui/button";
 
 const MetafiCta = () => {
   return (
-    <section
-      id="scalify-cta"
-      className="bg-primary relative overflow-hidden px-6"
-    >
+    <section id="scalify-cta" className="bg-primary relative overflow-hidden px-6">
       {/* dotted pattern */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-[size:16px_16px] opacity-20 [color:oklch(1_0_89.88)]" />
 
       {/* accent gradient */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent" />
+      <div className="from-accent/10 pointer-events-none absolute inset-0 bg-gradient-to-br via-transparent to-transparent" />
 
       <div className="container relative px-0 py-16 text-center sm:py-20 md:px-6 md:py-28">
         <h2 className="text-primary-foreground mx-auto max-w-5xl text-balance text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
@@ -22,13 +20,15 @@ const MetafiCta = () => {
         </p>
 
         <div className="mt-8 flex flex-col flex-wrap items-center justify-center gap-4 sm:flex-row">
-          <Button
-            asChild
-            size="lg"
-            className="bg-accent hover:bg-accent/90 text-accent-foreground h-14 w-full rounded-[12px] font-semibold text-lg sm:w-auto px-8"
-          >
-            <a href="mailto:consultas@scalifyagencia.online">AGENDAR REUNIÓN</a>
-          </Button>
+          <CustomClickEvent eventName="cta_click" location="scalify-cta" ctaText="AGENDAR REUNIÓN" ctaType="primary">
+            <Button
+              asChild
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground h-14 w-full rounded-[12px] px-8 text-lg font-semibold sm:w-auto"
+            >
+              <a href="mailto:consultas@scalifyagencia.online">AGENDAR REUNIÓN</a>
+            </Button>
+          </CustomClickEvent>
         </div>
       </div>
     </section>

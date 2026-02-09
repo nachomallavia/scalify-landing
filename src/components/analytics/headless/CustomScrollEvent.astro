@@ -125,9 +125,18 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
             
             if (eventName && eventDataStr) {
               try {
-                const eventData = JSON.parse(eventDataStr);
-                eventData.scrollDepth = milestone;
-                eventData.scrollPercent = Math.round(scrollPercent);
+                const baseEventData = JSON.parse(eventDataStr);
+                
+                // The eventData already comes structured from mergeEventData
+                // We just need to add scroll-specific properties
+                const eventData = {
+                  ...baseEventData,
+                  eventData: {
+                    ...baseEventData.eventData,
+                    scrollDepth: milestone,
+                    scrollPercent: Math.round(scrollPercent)
+                  }
+                };
                 
                 // Push to dataLayer
                 if (window.dataLayer) {
