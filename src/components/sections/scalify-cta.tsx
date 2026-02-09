@@ -1,7 +1,7 @@
 import { CustomClickEvent } from "@/components/analytics/react";
 import { Button } from "@/components/ui/button";
 
-const MetafiCta = () => {
+const ScalifyCta = () => {
   return (
     <section id="scalify-cta" className="bg-primary relative overflow-hidden px-6">
       {/* dotted pattern */}
@@ -35,4 +35,4 @@ const MetafiCta = () => {
   );
 };
 
-export default MetafiCta;
+export default ScalifyCta;

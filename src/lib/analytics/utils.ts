@@ -278,18 +278,35 @@ export function isAnalyticsReady(): { gtm: boolean; posthog: boolean } {
  *   productName: 'Red Shoe'
  * }
  *
- * EVENTDATA PATTERN:
- * All event-specific properties are grouped inside an 'eventData' object.
- * This ensures that each event completely replaces the previous event's
- * data in GTM's dataLayer, preventing any cross-contamination.
- * 
- * Structure:
- * - event: Event name (e.g., "cta_click")
- * - environment: "testing" or "production"
- * - eventData: { ...all event-specific properties }
- * 
- * Page-level properties (pageCategory, pageType) persist outside eventData
- * and are set once during page load by AnalyticsSetup.
+ * mergeEventData - Implements "props spread" pattern for all trackers
+ *
+ * This is what makes the system flexible - ANY prop you pass to a tracker
+ * component automatically becomes part of the tracked event data.
+ *
+ * Three sources merged in order (last wins):
+ * 1. eventName: The event identifier
+ * 2. eventData: Explicit data object prop
+ * 3. additionalProps: All other component props (...rest pattern)
+ *
+ * Example component usage:
+ * <CustomClickEvent
+ *   eventName="product_click"
+ *   eventData={{ category: 'shoes' }}
+ *   productId={123}           ← Becomes event property
+ *   productName="Red Shoe"    ← Becomes event property
+ * />
+ *
+ * Result:
+ * {
+ *   event: 'product_click',
+ *   category: 'shoes',
+ *   productId: 123,
+ *   productName: 'Red Shoe'
+ * }
+ *
+ * NOTE: GTM's dataLayer naturally persists properties across events.
+ * This is expected behavior. The analyst in GTM is responsible for mapping
+ * which properties belong to which event types.
  */
 export function mergeEventData(
   eventName: string,
@@ -303,16 +320,11 @@ export function mergeEventData(
   // Add environment field for easy filtering
   const environment = isTestingMode ? "testing" : "production";
 
-  // Group all event-specific properties inside eventData object
-  const mergedEventData = {
-    ...eventData,
-    ...additionalProps,
-  };
-
   return {
     event: finalEventName,
     environment,
-    eventData: mergedEventData, // All event-specific props grouped here
+    ...eventData,
+    ...additionalProps,
   };
 }
 

@@ -142,15 +142,11 @@ export function CustomScrollEvent({
       // Check which milestones have been reached
       milestones.forEach(milestone => {
         if (scrollPercent >= milestone && !trackedMilestones.current.has(milestone)) {
-          // The eventData already comes structured from mergeEventData
-          // We just need to add scroll-specific properties
+          // Track this milestone
           const eventDataToSend = {
             ...finalEventData,
-            eventData: {
-              ...finalEventData.eventData,
-              scrollDepth: milestone,
-              scrollPercent: Math.round(scrollPercent)
-            }
+            scrollDepth: milestone,
+            scrollPercent: Math.round(scrollPercent),
           };
           
           // Push to GTM

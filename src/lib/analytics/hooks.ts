@@ -42,16 +42,9 @@ import { identifyUser as utilsIdentifyUser, pushToDataLayer } from "./utils";
  * ```
  */
 export function useIsTestingMode(): boolean {
-  const [isTestingMode, setIsTestingMode] = useState(false);
-
-  useEffect(() => {
-    // Access env var on client-side
-    if (typeof window !== "undefined") {
-      setIsTestingMode(import.meta.env.PUBLIC_LIVE_TESTING === "true");
-    }
-  }, []);
-
-  return isTestingMode;
+  // import.meta.env is resolved at build time, so we can read it directly
+  // No need for useEffect or useState
+  return import.meta.env.PUBLIC_LIVE_TESTING === "true";
 }
 
 // ============================================================================
@@ -94,10 +87,11 @@ export function useIsTestingMode(): boolean {
  * ```
  */
 export function useTrackEvent() {
-  const isTestingMode = useIsTestingMode();
-
   return useCallback(
     (eventName: string, eventData?: Record<string, any>): void => {
+      // Check testing mode from build-time env var
+      const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === "true";
+      
       // Apply [TEST] prefix if in testing mode
       const finalEventName = isTestingMode ? `[TEST] ${eventName}` : eventName;
 
@@ -114,7 +108,7 @@ export function useTrackEvent() {
       // Push to analytics platforms
       pushToDataLayer(completeEventData);
     },
-    [isTestingMode],
+    [], // No dependencies needed since import.meta.env is constant at build time
   );
 }
 
