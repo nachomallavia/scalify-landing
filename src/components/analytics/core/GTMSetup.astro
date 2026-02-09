@@ -1,0 +1,220 @@
+---
+/**
+ * GTMSetup COMPONENT
+ * 
+ * PURPOSE: Initialize Google Tag Manager and capture UTM attribution
+ * PATTERN: SSR component that injects client-side scripts into <head>
+ * DEPENDENCIES: PUBLIC_GTM_ID env variable, window.dataLayer
+ * OUTPUT: Initializes dataLayer array, captures UTM params, loads GTM container
+ * 
+ * EXECUTION TIMELINE:
+ * 1. [SSR] Prepare initial page data
+ * 2. [Client] Initialize window.dataLayer = []
+ * 3. [Client] Push gtm.js event with page data
+ * 4. [Client] Capture UTM params from URL (if present)
+ * 5. [Client] Push utm_capture event to dataLayer
+ * 6. [Client] Store UTMs in sessionStorage (persistence)
+ * 7. [Client] Inject GTM container script (async download)
+ * 8. [Client ~150ms] GTM loads and processes backlog
+ * 
+ * IMPORTANT NOTES:
+ * - dataLayer is just an array - safe to push BEFORE GTM loads
+ * - UTM capture happens BEFORE GTM loads (intentional)
+ * - Only loads in production OR when PUBLIC_ANALYTICS_DEBUG=true
+ * - GTM script downloads async - doesn't block page render
+ * 
+ * PROPS vs ENV:
+ * - gtmId prop: When passed by AnalyticsSetup (testing/production resolution)
+ * - PUBLIC_GTM_ID env: Fallback when used standalone without AnalyticsSetup
+ */
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  gtmId?: string;           // Effective GTM ID (from AnalyticsSetup when testing mode)
+  isTestingMode?: boolean;  // Flag for [TEST] prefix and environment field
+  pageCategory?: string;    // e.g., "marketing", "product", "support"
+  pageType?: string;        // e.g., "landing", "article", "checkout"
+  additionalData?: Record<string, any>;  // Any extra page-level data
+}
+
+const { gtmId: gtmIdProp, isTestingMode = false, pageCategory, pageType, additionalData = {} } = Astro.props;
+
+// ============================================================================
+// ENVIRONMENT DETECTION
+// ============================================================================
+
+const GTM_ID_ENV = import.meta.env.PUBLIC_GTM_ID;
+const IS_DEBUG = import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true';
+const IS_PROD = import.meta.env.PROD;  // Astro's production flag
+
+// Resolve GTM ID: prop takes precedence (from AnalyticsSetup), else env
+// When used via AnalyticsSetup, gtmId is always passed when platform is configured
+const GTM_ID = gtmIdProp || GTM_ID_ENV;
+
+// Only load GTM when:
+// - GTM_ID is configured (prop or env), AND
+// - (We're in production OR debug mode is enabled)
+const shouldLoadGTM = Boolean(GTM_ID) && (IS_PROD || IS_DEBUG);
+
+// ============================================================================
+// INITIAL DATA PREPARATION
+// ============================================================================
+
+// This data gets pushed to dataLayer BEFORE GTM loads
+// Available immediately to all GTM tags and triggers
+// Includes environment field for easy filtering
+const initialData = {
+  environment: isTestingMode ? 'testing' : 'production',
+  pageCategory,
+  pageType,
+  ...additionalData,
+};
+---
+
+<!-- ============================================================================
+     TEMPLATE: SCRIPT INJECTION
+     ============================================================================ -->
+
+{!GTM_ID && (
+  <script is:inline>
+    console.warn('[GTM] No GTM ID configured. Set PUBLIC_GTM_ID in .env, or use AnalyticsSetup with PUBLIC_LIVE_TESTING and PUBLIC_GTM_TESTING_ID for testing mode.');
+  </script>
+)}
+
+{shouldLoadGTM && (
+  <>
+    <!-- ===================================================================
+         STEP 1: Initialize dataLayer & Capture UTM
+         =================================================================== -->
+    <!-- 
+      is:inline - Tells Astro NOT to bundle this script
+      define:vars - Passes server-side vars to client-side scope
+    -->
+    <script is:inline define:vars={{ initialData, GTM_ID, isTestingMode }}>
+      // ============================================================================
+      // DATALAYER INITIALIZATION
+      // ============================================================================
+      
+      // Create dataLayer if it doesn't exist (should be first script)
+      window.dataLayer = window.dataLayer || [];
+      
+      // Apply [TEST] prefix to event name if in testing mode
+      const gtmEventName = isTestingMode ? '[TEST] gtm.js' : 'gtm.js';
+      
+      // Push the GTM initialization event with page data
+      // This is the FIRST event GTM will see
+      window.dataLayer.push({
+        event: gtmEventName,
+        ...initialData,
+      });
+
+      // ============================================================================
+      // UTM CAPTURE (BEFORE GTM LOADS)
+      // ============================================================================
+      
+      /**
+       * Automatic UTM parameter capture
+       * 
+       * This runs BEFORE GTM loads (intentional) to ensure UTM data is
+       * already in dataLayer when GTM starts processing events.
+       * 
+       * Behavior:
+       * - If URL has UTM params: capture & store in sessionStorage
+       * - If no UTM params: try to restore from sessionStorage (same session)
+       * 
+       * Example URLs to test:
+       * ?utm_source=google&utm_medium=cpc&utm_campaign=brand
+       * ?utm_source=facebook&utm_medium=social&utm_campaign=summer_sale
+       * 
+       * Events pushed:
+       * - utm_capture: Fresh UTM params found in URL
+       * - utm_restore: Retrieved from sessionStorage (user navigated from UTM page)
+       */
+      (function captureUTM() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const utmParams = {};
+        let hasUTM = false;
+
+        // Extract all 5 standard UTM parameters
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(param => {
+          const value = urlParams.get(param);
+          if (value) {
+            utmParams[param] = value;
+            hasUTM = true;
+          }
+        });
+
+        if (hasUTM) {
+          // New UTM params found - push to dataLayer immediately
+          const utmEventName = isTestingMode ? '[TEST] utm_capture' : 'utm_capture';
+          window.dataLayer.push({
+            event: utmEventName,
+            environment: initialData.environment,
+            ...utmParams,
+          });
+
+          // Persist in sessionStorage for subsequent page views
+          // (UTM attribution continues throughout the session)
+          try {
+            sessionStorage.setItem('utm_params', JSON.stringify(utmParams));
+          } catch (e) {
+            console.warn('[GTM] Could not store UTM params in sessionStorage:', e);
+          }
+        } else {
+          // No UTM in URL - try to restore from previous page in session
+          try {
+            const storedUTM = sessionStorage.getItem('utm_params');
+            if (storedUTM) {
+              const parsedUTM = JSON.parse(storedUTM);
+              const utmRestoreEventName = isTestingMode ? '[TEST] utm_restore' : 'utm_restore';
+              window.dataLayer.push({
+                event: utmRestoreEventName,
+                environment: initialData.environment,
+                ...parsedUTM,
+              });
+            }
+          } catch (e) {
+            // Silent fail - user started session on non-UTM page
+          }
+        }
+      })();
+
+      // ============================================================================
+      // INITIALIZATION FLAG
+      // ============================================================================
+      
+      // Set flag so other scripts can check if GTM setup completed
+      // (Not the same as GTM being fully loaded - that happens async)
+      window.gtmInitialized = true;
+    </script>
+
+    <!-- ===================================================================
+         STEP 2: Load GTM Container Script
+         =================================================================== -->
+    <!--
+      Official GTM snippet (minified)
+      Downloads the GTM container asynchronously (~50-200ms)
+      
+      Once loaded, GTM will:
+      1. Process all events already in dataLayer (backlog)
+      2. Start monitoring dataLayer for new pushes
+      3. Execute configured tags based on triggers
+    -->
+    <script is:inline define:vars={{ GTM_ID }}>
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer',GTM_ID);
+    </script>
+  </>
+)}
+
+{IS_DEBUG && shouldLoadGTM && (
+  <script is:inline define:vars={{ GTM_ID }}>
+    console.log('[GTM] Initialized with ID:', GTM_ID);
+  </script>
+)}

@@ -1,0 +1,129 @@
+---
+/**
+ * CustomHoverEvent Component
+ * Tracks hover events with configurable duration threshold
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+interface Props {
+  eventName: string;
+  eventData?: Record<string, any>;
+  duration?: number;
+  [key: string]: any;
+}
+
+const { 
+  eventName, 
+  eventData = {},
+  duration = 1000, // 1 second default
+  ...additionalProps 
+} = Astro.props;
+
+// Generate unique ID for this tracker
+const trackerId = generateContextId();
+
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge all data (includes [TEST] prefix and environment field when in testing mode)
+const finalEventData = mergeEventData(eventName, eventData, additionalProps, isTestingMode);
+---
+
+<span 
+  style="display:contents" 
+  data-analytics-hover
+  data-hover-event={eventName}
+  data-hover-data={JSON.stringify(finalEventData)}
+  data-hover-duration={duration}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<script>
+  /**
+   * Hover event tracking with duration threshold
+   */
+  
+  // Use global flag to ensure only ONE set of listeners is attached
+  const globalFlag = '__analyticsHoverListenerAttached';
+  const hoverTimers = new Map<Element, ReturnType<typeof setTimeout>>();
+  const trackedHovers = new Set<Element>();
+
+  function attachHoverListeners() {
+    if ((window as any)[globalFlag]) return;
+    
+    const wrappers = document.querySelectorAll('[data-analytics-hover]');
+    
+    wrappers.forEach(wrapper => {
+      const childElement = wrapper.firstElementChild as HTMLElement;
+      if (!childElement) return;
+      
+      const duration = parseInt(wrapper.getAttribute('data-hover-duration') || '1000');
+      
+      // Mouse enter - start timer
+      childElement.addEventListener('mouseenter', () => {
+        const timer = setTimeout(() => {
+          if (!trackedHovers.has(wrapper)) {
+            const eventName = wrapper.getAttribute('data-hover-event');
+            const eventDataStr = wrapper.getAttribute('data-hover-data');
+            
+            if (eventName && eventDataStr) {
+              try {
+                const eventData = JSON.parse(eventDataStr);
+                eventData.hoverDuration = duration;
+                
+                // Push to dataLayer
+                if (window.dataLayer) {
+                  window.dataLayer.push(eventData);
+                }
+                
+                // Push to PostHog
+                if (window.posthog) {
+                  const { event, ...properties } = eventData;
+                  window.posthog.capture(event, properties);
+                }
+                
+                // Debug logging
+                if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+                  console.log('[CustomHoverEvent] Event tracked:', eventData);
+                }
+                
+                trackedHovers.add(wrapper);
+              } catch (error) {
+                console.error('[CustomHoverEvent] Error parsing event data:', error);
+              }
+            }
+          }
+        }, duration);
+        
+        hoverTimers.set(wrapper, timer);
+      });
+      
+      // Mouse leave - cancel timer
+      childElement.addEventListener('mouseleave', () => {
+        const timer = hoverTimers.get(wrapper);
+        if (timer) {
+          clearTimeout(timer);
+          hoverTimers.delete(wrapper);
+        }
+      });
+    });
+    
+    (window as any)[globalFlag] = true;
+  }
+
+  // Attach listeners when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachHoverListeners);
+  } else {
+    attachHoverListeners();
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    hoverTimers.forEach(timer => clearTimeout(timer));
+    hoverTimers.clear();
+  });
+</script>

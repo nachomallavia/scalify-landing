@@ -1,0 +1,251 @@
+---
+/**
+ * CustomViewEvent COMPONENT
+ * 
+ * PURPOSE: Track when elements become visible in viewport
+ * PATTERN: Headless + IntersectionObserver API
+ * DEPENDENCIES: IntersectionObserver API (98% browser support), utils.ts, analytics platforms
+ * OUTPUT: Fires event when element reaches visibility threshold
+ * 
+ * WHY INTERSECTIONOBSERVER?
+ * - Much more performant than scroll listeners
+ * - Native browser API for visibility detection
+ * - Automatically handles viewport changes, scrolling, resizing
+ * - Doesn't block main thread
+ * 
+ * KEY CONCEPTS:
+ * - THRESHOLD: % of element that must be visible (0.5 = 50%)
+ * - ONCE: Fire only first time visible (default), or every time
+ * - INTERSECTION RATIO: Actual visibility percentage (included in event)
+ * 
+ * USAGE EXAMPLES:
+ * 
+ * Basic (fires when 50% visible):
+ * <CustomViewEvent eventName="hero_visible">
+ *   <section class="hero">...</section>
+ * </CustomViewEvent>
+ * 
+ * With custom threshold:
+ * <CustomViewEvent 
+ *   eventName="cta_visible" 
+ *   threshold={0.9}  ← 90% must be visible
+ * >
+ *   <button>Sign Up</button>
+ * </CustomViewEvent>
+ * 
+ * Fire multiple times:
+ * <CustomViewEvent 
+ *   eventName="article_in_view"
+ *   once={false}  ← Fires every time user scrolls back to it
+ * >
+ *   <article>...</article>
+ * </CustomViewEvent>
+ * 
+ * Combine with click tracking (view -> click funnel):
+ * <CustomViewEvent eventName="product_viewed">
+ *   <CustomClickEvent eventName="product_clicked">
+ *     <div class="product">...</div>
+ *   </CustomClickEvent>
+ * </CustomViewEvent>
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  eventName: string;                 // Required: Event identifier
+  eventData?: Record<string, any>;   // Optional: Explicit event data
+  threshold?: number;                // 0.0 to 1.0, default 0.5 (50% visible)
+  once?: boolean;                    // Fire only first time? default true
+  [key: string]: any;                // Props spread
+}
+
+const { 
+  eventName, 
+  eventData = {}, 
+  threshold = 0.5,    // 50% of element must be visible
+  once = true,        // Default: fire only once
+  ...additionalProps 
+} = Astro.props;
+
+// ============================================================================
+// DATA PREPARATION
+// ============================================================================
+
+const trackerId = generateContextId();
+
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge event data (includes [TEST] prefix and environment field when in testing mode)
+const finalEventData = mergeEventData(eventName, eventData, additionalProps, isTestingMode);
+---
+
+<!-- ============================================================================
+     TEMPLATE: Headless Wrapper
+     ============================================================================ -->
+
+<!-- 
+  INVISIBLE WRAPPER with config in data attributes
+  
+  data-view-threshold: Stored as string, parsed to float in script
+  data-view-once: Stored as string "true"/"false", checked in script
+-->
+<span 
+  style="display:contents" 
+  data-analytics-view
+  data-view-event={eventName}
+  data-view-data={JSON.stringify(finalEventData)}
+  data-view-threshold={threshold}
+  data-view-once={once}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<!-- ============================================================================
+     CLIENT-SIDE: IntersectionObserver Setup
+     ============================================================================ -->
+
+<script>
+  /**
+   * INTERSECTIONOBSERVER API
+   * 
+   * Native browser API for efficient visibility detection.
+   * 
+   * How it works:
+   * 1. Create an IntersectionObserver with a callback
+   * 2. Tell it what to observe (DOM elements)
+   * 3. Browser calls your callback when visibility changes
+   * 4. Callback receives entries with intersection data
+   * 
+   * Advantages over scroll listeners:
+   * - Runs off main thread (doesn't block UI)
+   * - Handles all cases: scroll, resize, DOM changes
+   * - Much better performance
+   * 
+   * IMPORTANT: We observe the CHILD element, not the wrapper
+   * - Wrapper has display:contents (not in layout)
+   * - Child is the actual visible element
+   */
+  
+  let observerInitialized = false;
+  const trackedElements = new Set<Element>();  // Track which fired (for once=true)
+
+  function initializeObserver() {
+    // Guard: only initialize once
+    if (observerInitialized) return;
+    
+    // ============================================================================
+    // FIND ALL VIEW TRACKERS
+    // ============================================================================
+    
+    const elements = document.querySelectorAll('[data-analytics-view]');
+    
+    elements.forEach(wrapper => {
+      // ============================================================================
+      // GET CONFIG FROM ATTRIBUTES
+      // ============================================================================
+      
+      // We need to observe the CHILD, not the wrapper (display:contents)
+      const childElement = wrapper.firstElementChild;
+      if (!childElement) return;  // No child = nothing to observe
+      
+      const threshold = parseFloat(wrapper.getAttribute('data-view-threshold') || '0.5');
+      const once = wrapper.getAttribute('data-view-once') === 'true';
+      
+      // ============================================================================
+      // CREATE OBSERVER FOR THIS ELEMENT
+      // ============================================================================
+      
+      // Each tracker gets its own observer with its own threshold
+      const elementObserver = new IntersectionObserver(
+        (entries) => {
+          // Callback fires when visibility changes
+          entries.forEach((entry) => {
+            // ============================================================================
+            // CHECK VISIBILITY CONDITIONS
+            // ============================================================================
+            
+            // isIntersecting: Element is in viewport (any amount)
+            // intersectionRatio: Actual % visible (0.0 to 1.0)
+            // We require BOTH conditions:
+            // 1. Element is visible
+            // 2. Visibility meets threshold requirement
+            if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
+              const eventName = wrapper.getAttribute('data-view-event');
+              const eventDataStr = wrapper.getAttribute('data-view-data');
+              
+              // If once=true, check if we already tracked this element
+              if (eventName && eventDataStr && !trackedElements.has(wrapper)) {
+                try {
+                  const eventData = JSON.parse(eventDataStr);
+                  
+                  // ============================================================================
+                  // ENRICH WITH VISIBILITY METADATA
+                  // ============================================================================
+                  
+                  // Add actual visibility ratio (useful for analysis)
+                  // e.g., user saw 75% of element even though threshold was 50%
+                  eventData.visibilityRatio = entry.intersectionRatio;
+                  
+                  // ============================================================================
+                  // PUSH TO ANALYTICS PLATFORMS
+                  // ============================================================================
+                  
+                  if (window.dataLayer) {
+                    window.dataLayer.push(eventData);
+                  }
+                  
+                  if (window.posthog) {
+                    const { event, ...properties } = eventData;
+                    window.posthog.capture(event, properties);
+                  }
+                  
+                  if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+                    console.log('[CustomViewEvent] Event tracked:', eventData);
+                  }
+                  
+                  // ============================================================================
+                  // CLEANUP (if once=true)
+                  // ============================================================================
+                  
+                  if (once) {
+                    // Mark as tracked so we don't fire again
+                    trackedElements.add(wrapper);
+                    // Stop observing (performance optimization)
+                    elementObserver.unobserve(childElement);
+                  }
+                } catch (error) {
+                  console.error('[CustomViewEvent] Error parsing event data:', error);
+                }
+              }
+            }
+          });
+        },
+        { threshold }  // Observer configuration
+      );
+      
+      // ============================================================================
+      // START OBSERVING
+      // ============================================================================
+      
+      elementObserver.observe(childElement);
+    });
+    
+    observerInitialized = true;
+  }
+
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeObserver);
+  } else {
+    initializeObserver();
+  }
+</script>

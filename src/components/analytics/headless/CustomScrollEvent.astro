@@ -1,0 +1,181 @@
+---
+/**
+ * CustomScrollEvent Component
+ * Tracks scroll depth milestones: 25%, 50%, 75%, 100%
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+interface Props {
+  eventName: string;
+  eventData?: Record<string, any>;
+  milestones?: number[];
+  [key: string]: any;
+}
+
+const { 
+  eventName, 
+  eventData = {},
+  milestones = [25, 50, 75, 100],
+  ...additionalProps 
+} = Astro.props;
+
+// Generate unique ID for this tracker
+const trackerId = generateContextId();
+
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge all data (includes [TEST] prefix and environment field when in testing mode)
+const finalEventData = mergeEventData(eventName, eventData, additionalProps, isTestingMode);
+---
+
+<span 
+  style="display:contents" 
+  data-analytics-scroll
+  data-scroll-event={eventName}
+  data-scroll-data={JSON.stringify(finalEventData)}
+  data-scroll-milestones={JSON.stringify(milestones)}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<script>
+  /**
+   * Scroll depth tracking with debouncing
+   */
+  
+  // Use global flag to ensure only ONE set of listeners is attached
+  const globalFlag = '__analyticsScrollListenerAttached';
+  const trackedMilestones = new Map<Element, Set<number>>();
+
+  function debounce<T extends (...args: any[]) => void>(func: T, wait: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return function executedFunction(...args: Parameters<T>) {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }
+
+  function handleScroll() {
+    const elements = document.querySelectorAll('[data-analytics-scroll]');
+    
+    elements.forEach(wrapper => {
+      const childElement = wrapper.firstElementChild as HTMLElement;
+      if (!childElement) return;
+      
+      const rect = childElement.getBoundingClientRect();
+      const elementHeight = rect.height;
+      const windowHeight = window.innerHeight;
+      
+      // Calculate scroll progress through the element
+      // 0% = top entering viewport (top = windowHeight)
+      // 100% = bottom exiting viewport (bottom = 0)
+      // Works for elements of any height (smaller, equal, or larger than viewport)
+      let scrollPercent = 0;
+      
+      // Element hasn't entered viewport yet (top is below viewport bottom)
+      if (rect.top > windowHeight) {
+        scrollPercent = 0;
+      }
+      // Element has completely exited viewport (bottom is above viewport top)
+      else if (rect.bottom <= 0) {
+        scrollPercent = 100;
+      }
+      // Element is currently visible (at least partially)
+      else {
+        // Calculate how much of the element has "entered" the viewport
+        // entered = 0 when top = windowHeight (just starting to enter)
+        // entered = elementHeight when bottom = 0 (bottom at viewport top, fully scrolled through)
+        // Math.min ensures we don't exceed elementHeight for elements smaller than viewport
+        const entered = Math.max(0, Math.min(elementHeight, windowHeight - rect.top));
+        
+        scrollPercent = (entered / elementHeight) * 100;
+      }
+      
+      // Get milestones for this element
+      const milestonesStr = wrapper.getAttribute('data-scroll-milestones');
+      const milestones: number[] = milestonesStr ? JSON.parse(milestonesStr) : [25, 50, 75, 100];
+      
+      // Initialize tracked set for this element
+      if (!trackedMilestones.has(wrapper)) {
+        trackedMilestones.set(wrapper, new Set());
+      }
+      
+      const tracked = trackedMilestones.get(wrapper)!;
+      
+      // Sort milestones in ascending order
+      const sortedMilestones = [...milestones].sort((a, b) => a - b);
+      
+      // Find the highest milestone that should be tracked
+      // Only track milestones in sequential order (can't skip milestones)
+      for (const milestone of sortedMilestones) {
+        if (scrollPercent >= milestone && !tracked.has(milestone)) {
+          // Check if all previous milestones have been tracked
+          const previousMilestones = sortedMilestones.filter(m => m < milestone);
+          const allPreviousTracked = previousMilestones.every(m => tracked.has(m));
+          
+          // Only track if all previous milestones were tracked (or this is the first one)
+          if (allPreviousTracked || previousMilestones.length === 0) {
+            const eventName = wrapper.getAttribute('data-scroll-event');
+            const eventDataStr = wrapper.getAttribute('data-scroll-data');
+            
+            if (eventName && eventDataStr) {
+              try {
+                const eventData = JSON.parse(eventDataStr);
+                eventData.scrollDepth = milestone;
+                eventData.scrollPercent = Math.round(scrollPercent);
+                
+                // Push to dataLayer
+                if (window.dataLayer) {
+                  window.dataLayer.push(eventData);
+                }
+                
+                // Push to PostHog
+                if (window.posthog) {
+                  const { event, ...properties } = eventData;
+                  window.posthog.capture(event, properties);
+                }
+                
+                // Debug logging
+                if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+                  console.log('[CustomScrollEvent] Milestone tracked:', eventData);
+                }
+                
+                // Mark milestone as tracked
+                tracked.add(milestone);
+                
+                // Only track one milestone per scroll event to maintain sequential order
+                break;
+              } catch (error) {
+                console.error('[CustomScrollEvent] Error parsing event data:', error);
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function attachScrollListener() {
+    if ((window as any)[globalFlag]) return;
+    
+    const debouncedScroll = debounce(handleScroll, 100);
+    window.addEventListener('scroll', debouncedScroll, { passive: true });
+    
+    // Check initial scroll position
+    handleScroll();
+    
+    (window as any)[globalFlag] = true;
+  }
+
+  // Attach listener when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachScrollListener);
+  } else {
+    attachScrollListener();
+  }
+</script>

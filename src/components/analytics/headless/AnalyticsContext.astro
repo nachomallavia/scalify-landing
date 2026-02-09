@@ -1,0 +1,213 @@
+---
+/**
+ * AnalyticsContext COMPONENT
+ * 
+ * PURPOSE: Orchestrate nested trackers and provide debugging metadata
+ * PATTERN: Context provider using data attributes
+ * DEPENDENCIES: generateContextId from utils.ts
+ * OUTPUT: Invisible wrapper that marks children with context info
+ * 
+ * THE NESTED TRACKER PROBLEM:
+ * 
+ * <CustomClickEvent eventName="card_click">
+ *   <div class="card">
+ *     <CustomClickEvent eventName="button_click">
+ *       <button>Buy</button>  ← Click here
+ *     </CustomClickEvent>
+ *   </div>
+ * </CustomClickEvent>
+ * 
+ * Question: What fires when button is clicked?
+ * Answer: Only "button_click" (the innermost)
+ * 
+ * WHY IT WORKS:
+ * Event delegation uses `closest()` which finds the FIRST
+ * matching ancestor = the innermost tracker.
+ * 
+ * ANALYTICSCONTEXT ROLE:
+ * Doesn't change behavior, but adds debugging attributes so
+ * you can inspect the DOM and see which trackers are active
+ * on any element.
+ * 
+ * DEBUGGING ATTRIBUTES ADDED:
+ * - data-analytics-context-id: Unique ID for this context
+ * - data-analytics-trackers: JSON array of active tracker types
+ * 
+ * Example output on child element:
+ * <button
+ *   data-analytics-context-id="ctx-abc123"
+ *   data-analytics-trackers='["click","view","hover"]'
+ * >
+ * 
+ * USAGE:
+ * Optional - only use when you want debugging info or logical grouping
+ * 
+ * <AnalyticsContext>
+ *   <CustomClickEvent eventName="card_click">
+ *     <CustomViewEvent eventName="card_view">
+ *       <div class="product-card">...</div>
+ *     </CustomViewEvent>
+ *   </CustomClickEvent>
+ * </AnalyticsContext>
+ */
+
+import { generateContextId } from '@/lib/analytics/utils';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  [key: string]: any;  // Accept any props (for flexibility)
+}
+
+const { ...additionalProps } = Astro.props;
+
+// ============================================================================
+// CONTEXT ID GENERATION
+// ============================================================================
+
+// Generate unique ID for this context scope
+const contextId = generateContextId();
+---
+
+<!-- ============================================================================
+     TEMPLATE: Context Wrapper
+     ============================================================================ -->
+
+<!-- 
+  INVISIBLE CONTEXT BOUNDARY
+  
+  Marks a context scope without affecting layout.
+  Children inherit context information.
+-->
+<span 
+  style="display:contents" 
+  data-analytics-context
+  data-context-id={contextId}
+  {...additionalProps}
+>
+  <slot />
+</span>
+
+<!-- ============================================================================
+     CLIENT-SIDE: Context Initialization
+     ============================================================================ -->
+
+<script>
+  /**
+   * CONTEXT SYSTEM INITIALIZATION
+   * 
+   * This script runs client-side to:
+   * 1. Find all AnalyticsContext boundaries
+   * 2. Scan for trackers within each context
+   * 3. Add debugging attributes to all child elements
+   * 
+   * HOW NESTED RESOLUTION WORKS:
+   * 
+   * The actual resolution happens in individual trackers via closest().
+   * AnalyticsContext DOESN'T control resolution - it just provides
+   * debugging metadata.
+   * 
+   * Example:
+   * User clicks button → event bubbles up → click listener fires
+   * → closest('[data-analytics-click]') finds FIRST match
+   * → That's the innermost tracker → only it fires
+   * 
+   * DEBUGGING IN DEVTOOLS:
+   * 
+   * Inspect any element and look for:
+   * - data-analytics-context-id: Which context it's in
+   * - data-analytics-trackers: Which types are active
+   * 
+   * Example:
+   * <button data-analytics-context-id="ctx-abc123"
+   *         data-analytics-trackers='["click","view"]'>
+   * 
+   * This tells you: "This button is tracked by click AND view"
+   */
+  
+  let contextInitialized = false;
+
+  function initializeContext() {
+    // Guard: only run once
+    if (contextInitialized) return;
+    
+    // ============================================================================
+    // FIND ALL CONTEXT SCOPES
+    // ============================================================================
+    
+    const contexts = document.querySelectorAll('[data-analytics-context]');
+    
+    contexts.forEach(context => {
+      // ============================================================================
+      // SCAN FOR ACTIVE TRACKERS
+      // ============================================================================
+      
+      // For each tracker type, count how many exist in this context
+      const trackers = {
+        click: context.querySelectorAll('[data-analytics-click]'),
+        view: context.querySelectorAll('[data-analytics-view]'),
+        hover: context.querySelectorAll('[data-analytics-hover]'),
+        form: context.querySelectorAll('[data-analytics-form]'),
+        scroll: context.querySelectorAll('[data-analytics-scroll]'),
+        time: context.querySelectorAll('[data-analytics-time]'),
+      };
+      
+      // ============================================================================
+      // BUILD ACTIVE TRACKERS LIST
+      // ============================================================================
+      
+      const activeTrackers: string[] = [];
+      Object.entries(trackers).forEach(([type, elements]) => {
+        if (elements.length > 0) {
+          activeTrackers.push(type);
+        }
+      });
+      
+      // ============================================================================
+      // ADD DEBUG ATTRIBUTES TO ALL CHILDREN
+      // ============================================================================
+      
+      if (activeTrackers.length > 0) {
+        const contextId = context.getAttribute('data-context-id');
+        
+        // Mark EVERY child element with context info
+        // This makes debugging in DevTools much easier
+        const allChildren = context.querySelectorAll('*');
+        allChildren.forEach(child => {
+          child.setAttribute('data-analytics-context-id', contextId || '');
+          child.setAttribute('data-analytics-trackers', JSON.stringify(activeTrackers));
+        });
+      }
+    });
+    
+    contextInitialized = true;
+    
+    // ============================================================================
+    // DEBUG LOGGING
+    // ============================================================================
+    
+    if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+      console.log('[AnalyticsContext] Context system initialized');
+      console.log('[AnalyticsContext] Total contexts:', contexts.length);
+    }
+  }
+
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeContext);
+  } else {
+    initializeContext();
+  }
+</script>
+
+<style>
+  /* Ensure display:contents works correctly */
+  [data-analytics-context] {
+    display: contents;
+  }
+</style>

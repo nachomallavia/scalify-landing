@@ -1,0 +1,201 @@
+---
+/**
+ * CustomClickEvent COMPONENT
+ * 
+ * PURPOSE: Track click events without adding visual wrappers
+ * PATTERN: Headless - uses display:contents + data attributes
+ * DEPENDENCIES: utils.ts (generateContextId, mergeEventData), window.dataLayer, window.posthog
+ * OUTPUT: Invisible <span> wrapper that captures clicks via event delegation
+ * 
+ * KEY CONCEPTS:
+ * 1. HEADLESS: The wrapper is invisible (display:contents)
+ * 2. EVENT DELEGATION: One global click listener for ALL trackers
+ * 3. CLOSEST PATTERN: Finds nearest tracker in DOM hierarchy
+ * 4. PROPS SPREAD: Any prop automatically becomes event data
+ * 
+ * USAGE EXAMPLES:
+ * 
+ * Basic:
+ * <CustomClickEvent eventName="button_click">
+ *   <button>Click Me</button>
+ * </CustomClickEvent>
+ * 
+ * With data:
+ * <CustomClickEvent 
+ *   eventName="product_click"
+ *   productId={123}
+ *   productName="Red Shoe"
+ * >
+ *   <div class="product-card">...</div>
+ * </CustomClickEvent>
+ * 
+ * Nested (only innermost fires):
+ * <CustomClickEvent eventName="card_click">
+ *   <div class="card">
+ *     <CustomClickEvent eventName="button_click">
+ *       <button>Buy Now</button>  ← Only button_click fires
+ *     </CustomClickEvent>
+ *   </div>
+ * </CustomClickEvent>
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  eventName: string;                 // Required: Event identifier
+  eventData?: Record<string, any>;   // Optional: Explicit event data
+  [key: string]: any;                // Props spread: any extra prop becomes event data
+}
+
+const { eventName, eventData = {}, ...additionalProps } = Astro.props;
+
+// ============================================================================
+// DATA PREPARATION
+// ============================================================================
+
+// Generate unique ID for debugging (visible in DOM as data-tracker-id)
+const trackerId = generateContextId();
+
+// Check if in testing mode (for [TEST] prefix and environment field)
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge eventName + eventData + additionalProps
+// This implements the "props spread" pattern
+// Includes [TEST] prefix and environment field when in testing mode
+const finalEventData = mergeEventData(eventName, eventData, additionalProps, isTestingMode);
+---
+
+<!-- ============================================================================
+     TEMPLATE: Headless Wrapper
+     ============================================================================ -->
+
+<!-- 
+  INVISIBLE WRAPPER
+  
+  display:contents: Makes the <span> invisible to layout
+  - Children render as if wrapper doesn't exist
+  - Doesn't affect Grid, Flexbox, or any CSS
+  - 98.7% browser support (IE11 not supported)
+  
+  data-analytics-click: Selector for event delegation
+  data-click-event: Event name stored in DOM
+  data-click-data: Full event payload (JSON string)
+  data-tracker-id: Unique ID for debugging
+-->
+<span 
+  style="display:contents" 
+  data-analytics-click
+  data-click-event={eventName}
+  data-click-data={JSON.stringify(finalEventData)}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<!-- ============================================================================
+     CLIENT-SIDE: Event Delegation
+     ============================================================================ -->
+
+<script>
+  /**
+   * EVENT DELEGATION PATTERN
+   * 
+   * Instead of attaching a click listener to each tracked element,
+   * we use ONE global listener for the entire page.
+   * 
+   * Benefits:
+   * - Memory efficient (1 listener vs hundreds)
+   * - Works with dynamically added elements
+   * - Better performance
+   * 
+   * How it works:
+   * 1. User clicks anywhere on page
+   * 2. Event bubbles up to document
+   * 3. We use closest() to find the nearest [data-analytics-click]
+   * 4. If found, parse data and push to analytics
+   * 
+   * IMPORTANT: capture:true
+   * - Listener fires in capture phase (before target's handlers)
+   * - Ensures we catch the click even if another handler calls stopPropagation
+   */
+  
+  // Use global flag to ensure only ONE listener is attached across all instances
+  const globalFlag = '__analyticsClickListenerAttached';
+
+  function attachClickListener() {
+    // Guard: only attach once even if multiple components load
+    if ((window as any)[globalFlag]) return;
+    
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      
+      // ============================================================================
+      // CLOSEST PATTERN - Find nearest tracker
+      // ============================================================================
+      
+      // closest() searches UP the DOM tree from clicked element
+      // Stops at first match = innermost tracker wins
+      // This solves the nested tracker problem automatically
+      const trackedElement = target.closest('[data-analytics-click]');
+      
+      if (trackedElement) {
+        const eventName = trackedElement.getAttribute('data-click-event');
+        const eventDataStr = trackedElement.getAttribute('data-click-data');
+        const trackerId = trackedElement.getAttribute('data-tracker-id');
+        
+        if (eventName && eventDataStr) {
+          try {
+            // Parse JSON data from attribute
+            const eventData = JSON.parse(eventDataStr);
+            
+            // ============================================================================
+            // PUSH TO ANALYTICS PLATFORMS
+            // ============================================================================
+            
+            // GTM: Push to dataLayer array
+            if (window.dataLayer) {
+              window.dataLayer.push(eventData);
+            }
+            
+            // PostHog: Capture event with properties
+            if (window.posthog) {
+              const { event, ...properties } = eventData;
+              window.posthog.capture(event, properties);
+            }
+            
+            // Debug mode: Log to console with tracker ID
+            if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+              console.log('[CustomClickEvent] Event tracked:', {
+                trackerId,
+                eventName,
+                eventData
+              });
+            }
+          } catch (error) {
+            console.error('[CustomClickEvent] Error parsing event data:', error);
+          }
+        }
+      }
+    }, { capture: true });  // capture:true = listen in capture phase
+    
+    // Mark as attached globally
+    (window as any)[globalFlag] = true;
+  }
+
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+  
+  // Attach listener as soon as possible
+  if (document.readyState === 'loading') {
+    // DOM still loading - wait for DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', attachClickListener);
+  } else {
+    // DOM already loaded - attach immediately
+    attachClickListener();
+  }
+</script>

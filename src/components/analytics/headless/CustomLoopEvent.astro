@@ -1,0 +1,320 @@
+---
+/**
+ * CustomLoopEvent COMPONENT - AUTO-ENRICHMENT FOR LOOPS
+ * 
+ * PURPOSE: Track events in lists/grids with automatic context enrichment
+ * PATTERN: Headless + auto data extraction from loop items
+ * DEPENDENCIES: utils.ts, analytics platforms
+ * OUTPUT: Click events enriched with loop position and item properties
+ * 
+ * THE PROBLEM IT SOLVES:
+ * 
+ * Without CustomLoopEvent (manual):
+ * {products.map((product, index) => (
+ *   <CustomClickEvent 
+ *     eventName="product_click"
+ *     productId={product.id}        ← Manual
+ *     productName={product.name}    ← Manual
+ *     productPrice={product.price}  ← Manual
+ *     position={index}              ← Manual
+ *     total={products.length}       ← Manual
+ *   >
+ *     <ProductCard product={product} />
+ *   </CustomClickEvent>
+ * ))}
+ * 
+ * With CustomLoopEvent (automatic):
+ * {products.map((product, index) => (
+ *   <CustomLoopEvent 
+ *     eventName="product_click"
+ *     item={product}              ← All properties extracted automatically
+ *     index={index}
+ *     total={products.length}
+ *   >
+ *     <ProductCard product={product} />
+ *   </CustomLoopEvent>
+ * ))}
+ * 
+ * AUTO-ENRICHMENT:
+ * 
+ * Given item = { id: 123, name: "Shirt", price: 29.99 }
+ * 
+ * CustomLoopEvent automatically adds:
+ * {
+ *   event: 'product_click',
+ *   loop_index: 0,           ← Auto (0-based)
+ *   loop_position: 1,        ← Auto (1-based)
+ *   loop_total: 10,          ← Auto
+ *   item_id: 123,            ← Auto (from item.id)
+ *   item_name: "Shirt",      ← Auto (from item.name)
+ *   item_price: 29.99        ← Auto (from item.price)
+ * }
+ * 
+ * IMPORTANT: Astro limitation
+ * This component accepts props directly, NOT a render prop pattern.
+ * Must be used with .map() in the template.
+ * 
+ * USAGE EXAMPLES:
+ * 
+ * Product grid:
+ * {products.map((product, index) => (
+ *   <CustomLoopEvent
+ *     eventName="product_click"
+ *     item={product}
+ *     index={index}
+ *     total={products.length}
+ *   >
+ *     <div class="product-card">
+ *       <h3>{product.name}</h3>
+ *       <p>${product.price}</p>
+ *     </div>
+ *   </CustomLoopEvent>
+ * ))}
+ * 
+ * With additional context:
+ * {articles.map((article, index) => (
+ *   <CustomLoopEvent
+ *     eventName="article_click"
+ *     eventData={{ category: 'blog' }}
+ *     item={article}
+ *     index={index}
+ *     total={articles.length}
+ *   >
+ *     <ArticleCard article={article} />
+ *   </CustomLoopEvent>
+ * ))}
+ * 
+ * Custom prefix (default: 'item_'):
+ * <CustomLoopEvent
+ *   eventName="product_click"
+ *   item={product}
+ *   itemPrefix="product_"  ← Results in product_id, product_name
+ *   index={index}
+ *   total={products.length}
+ * >
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  eventName: string;                 // Event identifier
+  eventData?: Record<string, any>;   // Additional event data
+  item: any;                         // The item object from the loop
+  index: number;                     // Loop index (0-based)
+  total: number;                     // Total items in loop
+  itemPrefix?: string;               // Prefix for item properties (default: 'item_')
+  [key: string]: any;                // Props spread
+}
+
+const { 
+  eventName, 
+  eventData = {},
+  item,
+  index,
+  total,
+  itemPrefix = 'item_',
+  ...additionalProps 
+} = Astro.props;
+
+// ============================================================================
+// DATA EXTRACTION & ENRICHMENT
+// ============================================================================
+
+const trackerId = generateContextId();
+
+// ============================================================================
+// EXTRACT ITEM PROPERTIES
+// ============================================================================
+
+/**
+ * Auto-extract primitive properties from item object
+ * 
+ * For objects: Extracts all primitive properties (strings, numbers, booleans)
+ * For primitives: Wraps in {item_value: primitive}
+ * 
+ * Skips functions and nested objects (can't serialize to JSON)
+ */
+const itemProps: Record<string, any> = {};
+
+if (typeof item === 'object' && item !== null) {
+  // Item is an object - extract all primitive properties
+  Object.entries(item).forEach(([key, value]) => {
+    // Only include serializable primitives
+    if (typeof value !== 'function' && typeof value !== 'object') {
+      const propKey = itemPrefix + key;
+      itemProps[propKey] = value;
+    }
+  });
+} else {
+  // Item is a primitive (string, number, boolean)
+  const propKey = itemPrefix + 'value';
+  itemProps[propKey] = item;
+}
+
+// ============================================================================
+// LOOP METADATA
+// ============================================================================
+
+/**
+ * Auto-inject loop context
+ * 
+ * loop_index: 0-based (useful for array operations)
+ * loop_position: 1-based (useful for display: "3rd item")
+ * loop_total: Total count (useful for "X of Y")
+ */
+const loopMetadata = {
+  loop_index: index,           // 0, 1, 2, ...
+  loop_total: total,           // Total items
+  loop_position: index + 1,    // 1, 2, 3, ... (human-friendly)
+};
+
+// ============================================================================
+// MERGE ALL DATA
+// ============================================================================
+
+/**
+ * Final event data combines:
+ * 1. eventName
+ * 2. eventData (explicit)
+ * 3. loopMetadata (auto)
+ * 4. itemProps (auto)
+ * 5. additionalProps (props spread)
+ * 6. [TEST] prefix and environment field (when in testing mode)
+ */
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+const finalEventData = mergeEventData(
+  eventName,
+  { ...eventData, ...loopMetadata, ...itemProps },
+  additionalProps,
+  isTestingMode
+);
+---
+
+<!-- ============================================================================
+     TEMPLATE: Loop Item Wrapper
+     ============================================================================ -->
+
+<!-- 
+  INVISIBLE WRAPPER
+  
+  Different selector than CustomClickEvent (data-analytics-loop-item)
+  so we can distinguish loop items in DevTools
+-->
+<span 
+  style="display:contents" 
+  data-analytics-loop-item
+  data-loop-event={eventName}
+  data-loop-data={JSON.stringify(finalEventData)}
+  data-loop-index={index}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<!-- ============================================================================
+     CLIENT-SIDE: Loop Event Delegation
+     ============================================================================ -->
+
+<script>
+  /**
+   * LOOP EVENT DELEGATION
+   * 
+   * Same pattern as CustomClickEvent, but:
+   * - Different selector: [data-analytics-loop-item]
+   * - Enriched data: includes loop metadata and item properties
+   * 
+   * WHY A SEPARATE LISTENER?
+   * 
+   * We could reuse CustomClickEvent's listener, but having a
+   * separate one makes debugging easier - you can see in DevTools
+   * whether a click came from a loop item or a regular element.
+   * 
+   * NESTED LOOPS:
+   * 
+   * If you nest loops, closest() finds the innermost loop item:
+   * 
+   * <CustomLoopEvent eventName="category_click" item={category}>
+   *   <div class="category">
+   *     {category.products.map((product, i) => (
+   *       <CustomLoopEvent eventName="product_click" item={product}>
+   *         <div class="product">  ← Click here
+   *         </div>
+   *       </CustomLoopEvent>
+   *     ))}
+   *   </div>
+   * </CustomLoopEvent>
+   * 
+   * Result: Only "product_click" fires (innermost)
+   */
+  
+  // Use global flag to ensure only ONE set of listeners is attached
+  const globalFlag = '__analyticsLoopListenerAttached';
+
+  function attachLoopListener() {
+    // Guard: only attach once
+    if ((window as any)[globalFlag]) return;
+    
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      
+      // ============================================================================
+      // FIND CLOSEST LOOP ITEM
+      // ============================================================================
+      
+      // Searches UP the DOM tree, stops at first match
+      // = Innermost loop item wins (nested loop handling)
+      const loopItem = target.closest('[data-analytics-loop-item]');
+      
+      if (loopItem) {
+        const eventName = loopItem.getAttribute('data-loop-event');
+        const eventDataStr = loopItem.getAttribute('data-loop-data');
+        
+        if (eventName && eventDataStr) {
+          try {
+            // ============================================================================
+            // PARSE AND TRACK
+            // ============================================================================
+            
+            const eventData = JSON.parse(eventDataStr);
+            
+            // GTM
+            if (window.dataLayer) {
+              window.dataLayer.push(eventData);
+            }
+            
+            // PostHog
+            if (window.posthog) {
+              const { event, ...properties } = eventData;
+              window.posthog.capture(event, properties);
+            }
+            
+            // Debug
+            if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+              console.log('[CustomLoopEvent] Event tracked:', eventData);
+            }
+          } catch (error) {
+            console.error('[CustomLoopEvent] Error parsing event data:', error);
+          }
+        }
+      }
+    }, { capture: true });  // Capture phase
+    
+    (window as any)[globalFlag] = true;
+  }
+
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachLoopListener);
+  } else {
+    attachLoopListener();
+  }
+</script>

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { CustomClickEvent } from "@/components/analytics/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -80,17 +81,18 @@ const Navbar = () => {
         </a>
 
         <nav className="hidden items-center justify-center gap-8 lg:flex">
-          {ITEMS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className={cn(
-                "text-muted-foreground hover:text-foreground text-sm font-medium transition-colors",
-                pathname === link.href && "text-foreground",
-              )}
-            >
-              {link.label}
-            </a>
+          {ITEMS?.map((link) => (
+            <CustomClickEvent key={link.label} eventName="nav_click" location="navbar" linkText={link.label} linkUrl={link.href}>
+              <a
+                href={link.href}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground text-sm font-medium transition-colors",
+                  pathname === link.href && "text-foreground",
+                )}
+              >
+                {link.label}
+              </a>
+            </CustomClickEvent>
           ))}
         </nav>
 
@@ -100,18 +102,20 @@ const Navbar = () => {
               Login
             </Button>
           </a> */}
-          <a href="mailto:consultas@scalifyagencia.online" className={cn("hidden sm:block lg:block")}>
-            <Button
-              size="sm"
-              variant="default"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              href="mailto:consultas@scalifyagencia.online"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Agendar Reunión
-            </Button>
-          </a>
+          <CustomClickEvent eventName="cta_click" location="navbar" ctaText="Agendar Reunión" ctaType="primary">
+            <a href="mailto:consultas@scalifyagencia.online" className={cn("hidden sm:block lg:block")}>
+              <Button
+                size="sm"
+                variant="default"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                href="mailto:consultas@scalifyagencia.online"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Agendar Reunión
+              </Button>
+            </a>
+          </CustomClickEvent>
 
           <div className="lg:block">
             <ThemeToggle />
@@ -175,28 +179,34 @@ const Navbar = () => {
                 >
                   <div className="flex flex-col gap-6">
                     {ITEMS.map((link) => (
-                      <a
-                        key={link.label}
-                        href={link.href}
-                        className={cn("text-lg tracking-[-0.36px]", pathname === link.href ? "text-foreground" : "text-muted-foreground")}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {link.label}
-                      </a>
+                      <CustomClickEvent key={link.label} eventName="nav_click" location="mobile_menu" linkText={link.label} linkUrl={link.href}>
+                        <a
+                          href={link.href}
+                          className={cn("text-lg tracking-[-0.36px]", pathname === link.href ? "text-foreground" : "text-muted-foreground")}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {link.label}
+                        </a>
+                      </CustomClickEvent>
                     ))}
                   </div>
 
                   <div className="mb-6 mt-4 flex flex-col gap-3">
-                    <a href="/login" onClick={() => setIsMenuOpen(false)}>
-                      <Button className="w-full" size="sm" variant="outline">
-                        Login
-                      </Button>
-                    </a>
-                    <a href="/pricing" onClick={() => setIsMenuOpen(false)}>
-                      <Button className="w-full" size="sm" variant="default">
-                        Get Started
-                      </Button>
-                    </a>
+                    <CustomClickEvent eventName="cta_click" location="mobile_menu" ctaText="Login" ctaType="secondary">
+                      <a href="/login" onClick={() => setIsMenuOpen(false)}>
+                        <Button className="w-full" size="sm" variant="outline">
+                          Login
+                        </Button>
+                      </a>
+                    </CustomClickEvent>
+
+                    <CustomClickEvent eventName="cta_click" location="mobile_menu" ctaText="Get Started" ctaType="primary">
+                      <a href="/pricing" onClick={() => setIsMenuOpen(false)}>
+                        <Button className="w-full" size="sm" variant="default">
+                          Get Started
+                        </Button>
+                      </a>
+                    </CustomClickEvent>
                   </div>
                 </nav>
               </div>

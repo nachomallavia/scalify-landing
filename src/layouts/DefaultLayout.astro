@@ -3,12 +3,19 @@ import BaseHead from "@/components/BaseHead.astro";
 import Banner from "@/components/sections/banner";
 import Footer from "@/components/sections/footer.astro";
 import Navbar from "@/components/sections/navbar";
+import AnalyticsSetup from "@/components/analytics/core/AnalyticsSetup.astro";
 
 const { title, description, image } = Astro.props;
 ---
 
 <html lang="en">
   <head>
+    <!-- Analytics Setup - must be in head -->
+    <AnalyticsSetup 
+      pageCategory="marketing"
+      pageType="landing"
+    />
+    
     <BaseHead title={title} description={description} image={image} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,0 +1,182 @@
+---
+/**
+ * AnalyticsSetup COMPONENT - INTELLIGENT ORCHESTRATOR
+ * 
+ * PURPOSE: Single entry point that auto-detects and loads analytics platforms
+ * PATTERN: Wrapper component with conditional rendering
+ * DEPENDENCIES: GTMSetup.astro, PostHogSetup.astro, environment variables
+ * OUTPUT: Conditionally renders GTM and/or PostHog setup components
+ * 
+ * WHY THIS COMPONENT?
+ * 
+ * Instead of manually importing GTMSetup and PostHogSetup in every
+ * layout, you import AnalyticsSetup once. It:
+ * 
+ * 1. Checks which platforms are configured (.env)
+ * 2. Loads only the configured platforms
+ * 3. Merges common page data for both
+ * 4. Shows warnings if nothing is configured
+ * 
+ * USAGE IN LAYOUT:
+ * 
+ * <head>
+ *   <AnalyticsSetup 
+ *     pageCategory="marketing"
+ *     pageType="landing"
+ *   />
+ * </head>
+ * 
+ * That's it! Based on .env, it loads GTM, PostHog, both, or neither.
+ * 
+ * CONFIGURATION SCENARIOS:
+ * 
+ * Scenario 1: Only GTM
+ * .env: PUBLIC_GTM_ID=GTM-XXXXX
+ * Result: Loads GTMSetup only
+ * 
+ * Scenario 2: Only PostHog
+ * .env: PUBLIC_POSTHOG_KEY=phc_xxxxx
+ * Result: Loads PostHogSetup only
+ * 
+ * Scenario 3: Both platforms
+ * .env: PUBLIC_GTM_ID=GTM-XXXXX
+ *       PUBLIC_POSTHOG_KEY=phc_xxxxx
+ * Result: Loads both (recommended)
+ * 
+ * Scenario 4: Nothing configured
+ * .env: (empty)
+ * Result: Warning in console, no tracking
+ * 
+ * Scenario 5: Testing mode (PUBLIC_LIVE_TESTING=true)
+ * .env: PUBLIC_LIVE_TESTING=true
+ *       PUBLIC_GTM_TESTING_ID=GTM-TEST
+ *       PUBLIC_POSTHOG_TESTING_ID=phc_test
+ * Result: Loads testing containers/keys. If testing IDs missing, fallback to production.
+ */
+
+import GTMSetup from './GTMSetup.astro';
+import PostHogSetup from './PostHogSetup.astro';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  pageCategory?: string;    // e.g., "marketing", "product", "support"
+  pageType?: string;        // e.g., "landing", "article", "checkout"
+  pageTitle?: string;       // Override page title (defaults to pathname)
+  pagePath?: string;        // Override path (defaults to pathname)
+  [key: string]: any;       // Props spread for custom page data
+}
+
+const { 
+  pageCategory, 
+  pageType, 
+  pageTitle,
+  pagePath,
+  ...additionalProps 
+} = Astro.props;
+
+// ============================================================================
+// PLATFORM DETECTION & TESTING MODE
+// ============================================================================
+
+const GTM_ID = import.meta.env.PUBLIC_GTM_ID;
+const POSTHOG_KEY = import.meta.env.PUBLIC_POSTHOG_KEY;
+const GTM_TESTING_ID = import.meta.env.PUBLIC_GTM_TESTING_ID;
+const POSTHOG_TESTING_ID = import.meta.env.PUBLIC_POSTHOG_TESTING_ID;
+const IS_TESTING_MODE = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+const IS_DEBUG = import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true';
+
+// Resolve effective IDs: testing mode uses testing IDs with fallback to production
+// When PUBLIC_LIVE_TESTING=false or not set: production IDs only
+// When PUBLIC_LIVE_TESTING=true: testing IDs if set, else production (allows testing with prod container)
+const effectiveGTMId = IS_TESTING_MODE
+  ? (GTM_TESTING_ID || GTM_ID)
+  : GTM_ID;
+const effectivePostHogKey = IS_TESTING_MODE
+  ? (POSTHOG_TESTING_ID || POSTHOG_KEY)
+  : POSTHOG_KEY;
+
+// Check which platforms are configured (must have at least one effective ID)
+const hasGTM = Boolean(effectiveGTMId);
+const hasPostHog = Boolean(effectivePostHogKey);
+
+// ============================================================================
+// SHARED PAGE DATA
+// ============================================================================
+
+// Prepare data object shared by both platforms
+// Reduces duplication - defined once, used by both
+const pageData = {
+  pageCategory,
+  pageType,
+  // Smart defaults: use provided value OR fall back to pathname
+  pageTitle: pageTitle || Astro.url.pathname,
+  pagePath: pagePath || Astro.url.pathname,
+  // Spread any additional props (flexibility)
+  ...additionalProps,
+};
+---
+
+<!-- ============================================================================
+     TEMPLATE: CONDITIONAL PLATFORM LOADING
+     ============================================================================ -->
+
+<!-- ============================================================================
+     WARNING: No platforms configured
+     ============================================================================ -->
+{(!hasGTM && !hasPostHog) && (
+  <script is:inline>
+    console.warn(
+      '[Analytics] No analytics platform configured. ' +
+      'Set PUBLIC_GTM_ID and/or PUBLIC_POSTHOG_KEY in .env. ' +
+      'For testing mode (PUBLIC_LIVE_TESTING=true), also set PUBLIC_GTM_TESTING_ID and/or PUBLIC_POSTHOG_TESTING_ID.'
+    );
+  </script>
+)}
+
+<!-- ============================================================================
+     CONDITIONAL LOADING: GTM
+     ============================================================================ -->
+<!-- 
+  Astro's {condition && <Component />} syntax
+  Only renders if hasGTM is true
+  
+  gtmId: Effective ID (testing or production) resolved by orchestrator
+  isTestingMode: Flag for [TEST] prefix and environment field
+  {...pageData} spreads all page data as props to GTMSetup
+-->
+{hasGTM && <GTMSetup gtmId={effectiveGTMId} isTestingMode={IS_TESTING_MODE} {...pageData} />}
+
+<!-- ============================================================================
+     CONDITIONAL LOADING: PostHog
+     ============================================================================ -->
+{hasPostHog && <PostHogSetup posthogKey={effectivePostHogKey} isTestingMode={IS_TESTING_MODE} {...pageData} />}
+
+<!-- ============================================================================
+     DEBUG MODE: Log configuration
+     ============================================================================ -->
+<!-- 
+  When PUBLIC_ANALYTICS_DEBUG=true, log:
+  - Which platforms loaded
+  - What page data was sent
+  
+  Useful for verifying setup without opening GTM debugger
+-->
+{IS_DEBUG && (
+  <script is:inline define:vars={{ hasGTM, hasPostHog, IS_TESTING_MODE, effectiveGTMId, effectivePostHogKey, pageData }}>
+    console.log('[Analytics] Setup complete:', {
+      testingMode: IS_TESTING_MODE,
+      platforms: {
+        GTM: hasGTM,
+        PostHog: hasPostHog,
+      },
+      effectiveIds: {
+        GTM: effectiveGTMId || '(none)',
+        PostHog: effectivePostHogKey ? '(configured)' : '(none)',
+      },
+      pageData,
+    });
+  </script>
+)}

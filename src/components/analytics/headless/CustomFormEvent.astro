@@ -1,0 +1,534 @@
+---
+/**
+ * CustomFormEvent COMPONENT - MOST ADVANCED TRACKER
+ * 
+ * PURPOSE: Comprehensive form analytics with detailed error tracking
+ * PATTERN: Headless + ValidityState API + form event listeners
+ * DEPENDENCIES: ValidityState API, utils.ts, analytics platforms
+ * OUTPUT: Three events with rich metadata: start, error (exhaustive), submit
+ * 
+ * THREE EVENTS TRACKED:
+ * 1. FORM_START - User begins interaction (first field focus)
+ * 2. FORM_ERROR - Validation fails (with detailed error breakdown)
+ * 3. FORM_SUBMIT - Successful submission
+ * 
+ * VALIDITYSTATE API - BROWSER-NATIVE VALIDATION
+ * Instead of writing custom validation logic, we use the browser's
+ * built-in form validation API which provides:
+ * - valueMissing: Required field empty
+ * - typeMismatch: Invalid email/URL format
+ * - patternMismatch: Doesn't match regex pattern
+ * - tooShort/tooLong: Length constraints
+ * - rangeUnderflow/rangeOverflow: Number min/max
+ * - stepMismatch: Number step violation
+ * - badInput: Malformed input
+ * 
+ * EXHAUSTIVE ERROR TRACKING includes:
+ * - All error types per field
+ * - Browser validation messages
+ * - Field constraints (min, max, pattern, etc)
+ * - Total error count
+ * - Error summary string
+ * - Form completion metrics
+ * - Time spent on form
+ * - Submit attempt count
+ * 
+ * USAGE EXAMPLES:
+ * 
+ * Basic:
+ * <CustomFormEvent>
+ *   <form>
+ *     <input type="email" required />
+ *     <button type="submit">Submit</button>
+ *   </form>
+ * </CustomFormEvent>
+ * 
+ * Custom event names:
+ * <CustomFormEvent
+ *   eventNameStart="signup_start"
+ *   eventNameError="signup_error"
+ *   eventNameSubmit="signup_complete"
+ * >
+ *   <form>...</form>
+ * </CustomFormEvent>
+ * 
+ * Track field values (careful with sensitive data!):
+ * <CustomFormEvent
+ *   trackFieldNames={true}   ← Default
+ *   trackFieldValues={true}  ← Be cautious!
+ * >
+ *   <form>...</form>
+ * </CustomFormEvent>
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface Props {
+  eventNameSubmit?: string;          // Default: 'form_submit'
+  eventNameError?: string;           // Default: 'form_error'
+  eventNameStart?: string;           // Default: 'form_start'
+  eventData?: Record<string, any>;   // Base event data
+  trackFieldNames?: boolean;         // Track which fields exist
+  trackFieldValues?: boolean;        // Track actual values (privacy risk!)
+  [key: string]: any;                // Props spread
+}
+
+const { 
+  eventNameSubmit = 'form_submit',
+  eventNameError = 'form_error',
+  eventNameStart = 'form_start',
+  eventData = {},
+  trackFieldNames = true,    // Safe - just field names
+  trackFieldValues = false,  // Risky - actual user input
+  ...additionalProps 
+} = Astro.props;
+
+// ============================================================================
+// DATA PREPARATION
+// ============================================================================
+
+const trackerId = generateContextId();
+
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge event data (includes [TEST] prefix and environment field when in testing mode)
+const finalEventData = mergeEventData('form_event', eventData, additionalProps, isTestingMode);
+---
+
+<!-- ============================================================================
+     TEMPLATE: Headless Wrapper
+     ============================================================================ -->
+
+<span 
+  style="display:contents" 
+  data-analytics-form
+  data-form-event-submit={eventNameSubmit}
+  data-form-event-error={eventNameError}
+  data-form-event-start={eventNameStart}
+  data-form-data={JSON.stringify(finalEventData)}
+  data-form-track-names={trackFieldNames}
+  data-form-track-values={trackFieldValues}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<script>
+  /**
+   * FORM ANALYTICS WITH VALIDITYSTATE API
+   * 
+   * This is the most complex tracker because forms have:
+   * - Multiple events (start, error, submit)
+   * - Multiple fields with different validation rules
+   * - Complex validation state from ValidityState API
+   * - Metrics that need to be tracked over time
+   * 
+   * ARCHITECTURE:
+   * 1. Initialize metrics on first load (Map per form)
+   * 2. Attach focus listeners to detect start
+   * 3. Attach submit listener to detect submit/validation
+   * 4. Use ValidityState to extract ALL error details
+   * 5. Track metrics: time, attempts, completion rate
+   */
+  
+  // Use global flag to ensure only ONE set of listeners is attached
+  const globalFlag = '__analyticsFormListenerAttached';
+  
+  // Map to store per-form metrics across interactions
+  const formMetrics = new Map<Element, {
+    startTime: number;           // When user first focused
+    submitAttempts: number;      // How many times clicked submit
+    fieldsInteracted: Set<string>;  // Which fields user touched
+  }>();
+
+  // ============================================================================
+  // VALIDITYSTATE PARSING - Extract ALL error types
+  // ============================================================================
+  
+  /**
+   * getFieldErrorDetails - Parses browser's ValidityState object
+   * 
+   * The ValidityState API provides detailed validation info:
+   * field.validity = {
+   *   valid: boolean,          // Overall status
+   *   valueMissing: boolean,   // Required but empty
+   *   typeMismatch: boolean,   // Wrong type (email, url)
+   *   patternMismatch: boolean,// Regex failed
+   *   tooShort: boolean,       // < minlength
+   *   tooLong: boolean,        // > maxlength
+   *   rangeUnderflow: boolean, // number < min
+   *   rangeOverflow: boolean,  // number > max
+   *   stepMismatch: boolean,   // number step violation
+   *   badInput: boolean,       // Malformed (e.g., letters in number field)
+   *   customError: boolean     // setCustomValidity() was called
+   * }
+   * 
+   * We check EVERY property and build a detailed error object.
+   */
+  function getFieldErrorDetails(field: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {
+    const validity = field.validity;
+    const errors: string[] = [];
+    const details: Record<string, any> = {};
+    
+    // Identify specific validation errors
+    if (validity.valueMissing) {
+      errors.push('valueMissing');
+      details.required = true;
+    }
+    if (validity.typeMismatch) {
+      errors.push('typeMismatch');
+      details.expectedType = field.type;
+    }
+    if (validity.patternMismatch) {
+      errors.push('patternMismatch');
+      details.pattern = field.getAttribute('pattern') || 'unknown';
+    }
+    if (validity.tooShort) {
+      errors.push('tooShort');
+      details.minLength = field.getAttribute('minlength');
+      details.currentLength = (field as HTMLInputElement).value.length;
+    }
+    if (validity.tooLong) {
+      errors.push('tooLong');
+      details.maxLength = field.getAttribute('maxlength');
+      details.currentLength = (field as HTMLInputElement).value.length;
+    }
+    if (validity.rangeUnderflow) {
+      errors.push('rangeUnderflow');
+      details.min = field.getAttribute('min');
+      details.value = (field as HTMLInputElement).value;
+    }
+    if (validity.rangeOverflow) {
+      errors.push('rangeOverflow');
+      details.max = field.getAttribute('max');
+      details.value = (field as HTMLInputElement).value;
+    }
+    if (validity.stepMismatch) {
+      errors.push('stepMismatch');
+      details.step = field.getAttribute('step');
+    }
+    if (validity.badInput) {
+      errors.push('badInput');
+    }
+    
+    return {
+      field: field.name || field.id || 'unnamed',
+      fieldType: field.type || 'unknown',
+      errorTypes: errors,
+      validationMessage: field.validationMessage,
+      ...details
+    };
+  }
+
+  // ============================================================================
+  // FORM-LEVEL ERROR COLLECTION
+  // ============================================================================
+  
+  /**
+   * getAllFormErrors - Scans entire form for validation errors
+   * 
+   * Iterates through form.elements (all inputs, selects, textareas)
+   * and collects detailed error info for each invalid field.
+   * 
+   * Returns array of error objects from getFieldErrorDetails().
+   */
+  function getAllFormErrors(form: HTMLFormElement) {
+    const errors: any[] = [];
+    const formElements = form.elements;
+    
+    for (let i = 0; i < formElements.length; i++) {
+      const element = formElements[i] as HTMLInputElement;
+      if (element.validity && !element.validity.valid) {
+        errors.push(getFieldErrorDetails(element));
+      }
+    }
+    
+    return errors;
+  }
+
+  // ============================================================================
+  // FORM DATA EXTRACTION
+  // ============================================================================
+  
+  /**
+   * extractFormData - Builds comprehensive form metadata
+   * 
+   * Collects:
+   * - Field names (if trackNames=true)
+   * - Field values (if trackValues=true, with privacy safeguards)
+   * - Completion metrics (how many fields filled vs total)
+   * - Completion rate percentage
+   * 
+   * PRIVACY SAFEGUARDS:
+   * - Never tracks password field values (only length & filled status)
+   * - Never tracks email field values (only length & filled status)
+   * - Other fields only tracked if explicitly enabled
+   */
+  function extractFormData(form: HTMLFormElement, trackNames: boolean, trackValues: boolean) {
+    const formData: Record<string, any> = {};
+    
+    if (trackNames) {
+      const fields: string[] = [];
+      const formElements = form.elements;
+      let completedFields = 0;
+      
+      for (let i = 0; i < formElements.length; i++) {
+        const element = formElements[i] as HTMLInputElement;
+        if (element.name && element.type !== 'submit' && element.type !== 'button') {
+          fields.push(element.name);
+          
+          // Count completed fields
+          if (element.value && element.value.trim() !== '') {
+            completedFields++;
+          }
+          
+          if (trackValues && element.value) {
+            // Only track non-sensitive values
+            if (element.type !== 'password' && element.type !== 'email') {
+              formData[element.name] = element.value;
+            } else {
+              // For sensitive fields, just indicate if filled
+              formData[element.name + '_filled'] = element.value.length > 0;
+              formData[element.name + '_length'] = element.value.length;
+            }
+          }
+        }
+      }
+      
+      formData.fieldNames = fields;
+      formData.fieldCount = fields.length;
+      formData.fieldsCompleted = completedFields;
+      formData.completionRate = fields.length > 0 ? Math.round((completedFields / fields.length) * 100) : 0;
+    }
+    
+    return formData;
+  }
+
+  // ============================================================================
+  // METRICS CALCULATION
+  // ============================================================================
+  
+  /**
+   * getFormMetrics - Calculates time-based and interaction metrics
+   * 
+   * Retrieves stored metrics from formMetrics Map and calculates:
+   * - timeSpent: Milliseconds since first interaction
+   * - timeSpentSeconds: Seconds (rounded)
+   * - submitAttempts: How many times submit was clicked
+   * - fieldsInteracted: Count of unique fields touched
+   * - interactedFields: Array of field names touched
+   */
+  function getFormMetrics(wrapper: Element) {
+    const metrics = formMetrics.get(wrapper);
+    if (!metrics) return {};
+    
+    const timeSpent = Date.now() - metrics.startTime;
+    
+    return {
+      timeSpent,
+      timeSpentSeconds: Math.round(timeSpent / 1000),
+      submitAttempts: metrics.submitAttempts,
+      fieldsInteracted: metrics.fieldsInteracted.size,
+      interactedFields: Array.from(metrics.fieldsInteracted)
+    };
+  }
+
+  // ============================================================================
+  // EVENT TRACKING FUNCTION
+  // ============================================================================
+  
+  /**
+   * trackFormEvent - Central function that pushes form events
+   * 
+   * Handles three event types:
+   * - 'start': Minimal data, just marks beginning
+   * - 'error': EXHAUSTIVE error details from ValidityState
+   * - 'submit': Success metrics
+   * 
+   * Merges:
+   * - Base eventData (from component props)
+   * - Form metadata (action, method, id, name)
+   * - Field data (names, counts, completion rate)
+   * - Form metrics (time, attempts, interactions)
+   * - Error context (if type='error')
+   * 
+   * Then pushes to both GTM and PostHog.
+   */
+  function trackFormEvent(
+    form: HTMLFormElement, 
+    wrapper: Element, 
+    eventType: 'submit' | 'error' | 'start',
+    errorContext?: any
+  ) {
+    const eventName = wrapper.getAttribute(`data-form-event-${eventType}`);
+    const eventDataStr = wrapper.getAttribute('data-form-data');
+    const trackNames = wrapper.getAttribute('data-form-track-names') === 'true';
+    const trackValues = wrapper.getAttribute('data-form-track-values') === 'true';
+    
+    if (eventName && eventDataStr) {
+      try {
+        const eventData = JSON.parse(eventDataStr);
+        eventData.event = eventName;
+        eventData.formAction = form.action || 'none';
+        eventData.formMethod = form.method || 'get';
+        eventData.formId = form.id || 'unnamed';
+        eventData.formName = form.name || form.id || 'unnamed';
+        
+        // Add form field data
+        const formFieldData = extractFormData(form, trackNames, trackValues);
+        Object.assign(eventData, formFieldData);
+        
+        // Add form metrics
+        const metrics = getFormMetrics(wrapper);
+        Object.assign(eventData, metrics);
+        
+        // Enhanced error tracking
+        if (eventType === 'error') {
+          if (errorContext) {
+            // Detailed errors from validation
+            Object.assign(eventData, errorContext);
+          } else {
+            // Fallback to simple error
+            eventData.errorType = 'unknown';
+            eventData.errorMessage = 'Form validation failed';
+          }
+        }
+        
+        // Push to dataLayer
+        if (window.dataLayer) {
+          window.dataLayer.push(eventData);
+        }
+        
+        // Push to PostHog
+        if (window.posthog) {
+          const { event, ...properties } = eventData;
+          window.posthog.capture(event, properties);
+        }
+        
+        // Debug logging
+        if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+          console.log(`[CustomFormEvent] ${eventType} tracked:`, eventData);
+        }
+      } catch (error) {
+        console.error('[CustomFormEvent] Error parsing event data:', error);
+      }
+    }
+  }
+
+  /**
+   * Initialize form metrics
+   */
+  function initFormMetrics(wrapper: Element) {
+    if (!formMetrics.has(wrapper)) {
+      formMetrics.set(wrapper, {
+        startTime: Date.now(),
+        submitAttempts: 0,
+        fieldsInteracted: new Set()
+      });
+    }
+  }
+
+  // ============================================================================
+  // LISTENER ATTACHMENT
+  // ============================================================================
+  
+  /**
+   * attachFormListeners - Sets up all form event listeners
+   * 
+   * For each form wrapped by CustomFormEvent:
+   * 1. Initialize metrics storage
+   * 2. Attach focus listeners to all inputs (detect start)
+   * 3. Attach submit listener (detect submit/errors)
+   * 4. Attach invalid listener (field-level errors)
+   * 
+   * IMPORTANT: submit listener calls form.checkValidity()
+   * - If false: validation errors present, preventDefault(), fire error event
+   * - If true: form valid, allow submission, fire submit event
+   */
+  function attachFormListeners() {
+    if ((window as any)[globalFlag]) return;
+    
+    const wrappers = document.querySelectorAll('[data-analytics-form]');
+    
+    wrappers.forEach(wrapper => {
+      const form = wrapper.querySelector('form');
+      if (!form) return;
+      
+      // Initialize metrics
+      initFormMetrics(wrapper);
+      
+      // Track form start (first interaction)
+      const formInputs = form.querySelectorAll('input, select, textarea');
+      formInputs.forEach(input => {
+        // Track start on first focus
+        input.addEventListener('focus', () => {
+          const metrics = formMetrics.get(wrapper);
+          if (metrics && metrics.fieldsInteracted.size === 0) {
+            trackFormEvent(form, wrapper, 'start');
+          }
+          
+          // Track field interaction
+          if (metrics && (input as HTMLInputElement).name) {
+            metrics.fieldsInteracted.add((input as HTMLInputElement).name);
+          }
+        });
+      });
+      
+      // Track form submit
+      form.addEventListener('submit', (e) => {
+        const metrics = formMetrics.get(wrapper);
+        if (metrics) {
+          metrics.submitAttempts++;
+        }
+        
+        // Check for HTML5 validation errors
+        if (!form.checkValidity()) {
+          e.preventDefault(); // Prevent submission with errors
+          
+          // Get all errors
+          const errors = getAllFormErrors(form);
+          
+          const errorContext = {
+            errorType: 'validation',
+            errorCount: errors.length,
+            errors: errors,
+            errorSummary: errors.map(e => `${e.field}: ${e.errorTypes.join(', ')}`).join('; ')
+          };
+          
+          trackFormEvent(form, wrapper, 'error', errorContext);
+        } else {
+          trackFormEvent(form, wrapper, 'submit');
+        }
+      });
+      
+      // Track individual field errors (invalid event)
+      form.addEventListener('invalid', (e) => {
+        const target = e.target as HTMLInputElement;
+        const fieldError = getFieldErrorDetails(target);
+        
+        const errorContext = {
+          errorType: 'field_validation',
+          errorCount: 1,
+          errors: [fieldError],
+          errorSummary: `${fieldError.field}: ${fieldError.errorTypes.join(', ')}`
+        };
+        
+        trackFormEvent(form, wrapper, 'error', errorContext);
+      }, true);
+    });
+    
+    (window as any)[globalFlag] = true;
+  }
+
+  // Attach listeners when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachFormListeners);
+  } else {
+    attachFormListeners();
+  }
+</script>

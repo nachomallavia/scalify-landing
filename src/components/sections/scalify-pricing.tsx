@@ -3,6 +3,7 @@
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { CustomClickEvent } from "@/components/analytics/react";
 import { Button } from "@/components/ui/button";
 
 type PricingTier = {
@@ -93,13 +94,20 @@ function PricingCard({ tier, featured }: { tier: PricingTier; featured?: boolean
         ))}
       </div>
 
-      <Button
-        size="lg"
-        className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "border-border hover:bg-muted text-foreground border-2 bg-transparent"}`}
-        asChild
+      <CustomClickEvent
+        eventName="pricing_cta_click"
+        location="pricing"
+        planName={tier.name}
+        planType={featured ? "featured" : "standard"}
       >
-        <a href="mailto:consultas@scalifyagencia.online?subject=Consulta sobre plan {tier.name}">AGENDAR REUNIÓN</a>
-      </Button>
+        <Button
+          size="lg"
+          className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "border-border hover:bg-muted text-foreground border-2 bg-transparent"}`}
+          asChild
+        >
+          <a href={`mailto:consultas@scalifyagencia.online?subject=Consulta sobre plan ${tier.name}`}>AGENDAR REUNIÓN</a>
+        </Button>
+      </CustomClickEvent>
     </div>
   );
 }

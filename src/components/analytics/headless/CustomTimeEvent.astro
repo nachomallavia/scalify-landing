@@ -1,0 +1,186 @@
+---
+/**
+ * CustomTimeEvent Component
+ * Tracks time spent with element visible
+ */
+
+import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
+
+interface Props {
+  eventName: string;
+  eventData?: Record<string, any>;
+  interval?: number;
+  threshold?: number;
+  [key: string]: any;
+}
+
+const { 
+  eventName, 
+  eventData = {},
+  interval = 10000, // Report every 10 seconds
+  threshold = 0.5, // 50% visible
+  ...additionalProps 
+} = Astro.props;
+
+// Generate unique ID for this tracker
+const trackerId = generateContextId();
+
+// Check if in testing mode
+const isTestingMode = import.meta.env.PUBLIC_LIVE_TESTING === 'true';
+
+// Merge all data (includes [TEST] prefix and environment field when in testing mode)
+const finalEventData = mergeEventData(eventName, eventData, additionalProps, isTestingMode);
+---
+
+<span 
+  style="display:contents" 
+  data-analytics-time
+  data-time-event={eventName}
+  data-time-data={JSON.stringify(finalEventData)}
+  data-time-interval={interval}
+  data-time-threshold={threshold}
+  data-tracker-id={trackerId}
+>
+  <slot />
+</span>
+
+<script>
+  /**
+   * Time tracking with visibility detection
+   */
+  
+  let observerInitialized = false;
+  const trackers = new Map<Element, {
+    startTime: number | null;
+    totalTime: number;
+    timer: ReturnType<typeof setInterval> | null;
+    isVisible: boolean;
+  }>();
+
+  function reportTime(wrapper: Element) {
+    const tracker = trackers.get(wrapper);
+    if (!tracker) return;
+    
+    const eventName = wrapper.getAttribute('data-time-event');
+    const eventDataStr = wrapper.getAttribute('data-time-data');
+    
+    if (eventName && eventDataStr) {
+      try {
+        const eventData = JSON.parse(eventDataStr);
+        eventData.timeSpent = Math.round(tracker.totalTime / 1000); // seconds
+        eventData.timeSpentMs = tracker.totalTime;
+        
+        // Push to dataLayer
+        if (window.dataLayer) {
+          window.dataLayer.push(eventData);
+        }
+        
+        // Push to PostHog
+        if (window.posthog) {
+          const { event, ...properties } = eventData;
+          window.posthog.capture(event, properties);
+        }
+        
+        // Debug logging
+        if (import.meta.env.PUBLIC_ANALYTICS_DEBUG === 'true') {
+          console.log('[CustomTimeEvent] Time tracked:', eventData);
+        }
+      } catch (error) {
+        console.error('[CustomTimeEvent] Error parsing event data:', error);
+      }
+    }
+  }
+
+  function updateTime(wrapper: Element) {
+    const tracker = trackers.get(wrapper);
+    if (!tracker || !tracker.isVisible || !tracker.startTime) return;
+    
+    const now = Date.now();
+    tracker.totalTime += (now - tracker.startTime);
+    tracker.startTime = now;
+  }
+
+  function initializeTimeTracking() {
+    if (observerInitialized) return;
+    
+    const wrappers = document.querySelectorAll('[data-analytics-time]');
+    
+    wrappers.forEach(wrapper => {
+      const childElement = wrapper.firstElementChild as HTMLElement;
+      if (!childElement) return;
+      
+      const interval = parseInt(wrapper.getAttribute('data-time-interval') || '10000');
+      const threshold = parseFloat(wrapper.getAttribute('data-time-threshold') || '0.5');
+      
+      // Initialize tracker
+      trackers.set(wrapper, {
+        startTime: null,
+        totalTime: 0,
+        timer: null,
+        isVisible: false,
+      });
+      
+      const tracker = trackers.get(wrapper)!;
+      
+      // Create IntersectionObserver
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
+              // Element became visible
+              if (!tracker.isVisible) {
+                tracker.isVisible = true;
+                tracker.startTime = Date.now();
+                
+                // Start interval reporting
+                tracker.timer = setInterval(() => {
+                  updateTime(wrapper);
+                  reportTime(wrapper);
+                }, interval);
+              }
+            } else {
+              // Element became hidden
+              if (tracker.isVisible) {
+                updateTime(wrapper);
+                tracker.isVisible = false;
+                tracker.startTime = null;
+                
+                // Clear interval
+                if (tracker.timer) {
+                  clearInterval(tracker.timer);
+                  tracker.timer = null;
+                }
+              }
+            }
+          });
+        },
+        { threshold }
+      );
+      
+      observer.observe(childElement);
+    });
+    
+    observerInitialized = true;
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeTimeTracking);
+  } else {
+    initializeTimeTracking();
+  }
+
+  // Final report on page unload
+  window.addEventListener('beforeunload', () => {
+    trackers.forEach((tracker, wrapper) => {
+      if (tracker.isVisible) {
+        updateTime(wrapper);
+      }
+      reportTime(wrapper);
+      
+      if (tracker.timer) {
+        clearInterval(tracker.timer);
+      }
+    });
+  });
+</script>

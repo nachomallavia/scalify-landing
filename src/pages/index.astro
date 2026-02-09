@@ -1,19 +1,22 @@
 ---
+import CustomScrollEvent from "@/components/analytics/headless/CustomScrollEvent.astro";
 import MetafiCta from "@/components/sections/matafi-cta";
-import MetafiFeatures from "@/components/sections/metafi-features.astro";
+import ScalifyFeatures from "@/components/sections/scalify-features.astro";
 import ScalifyPricing from "@/components/sections/scalify-pricing";
 import ScalifyHero from "@/components/sections/ScalifyHero.astro";
 import DefaultLayout from "@/layouts/DefaultLayout.astro";
 ---
 
-<DefaultLayout 
-  title="¿BUSCAS ESCALAR VENTAS?" 
+<DefaultLayout
+  title="¿BUSCAS ESCALAR VENTAS?"
   description="En Scalify trabajamos combinando consultoría estratégica, generación de demanda, implementación de IA y tecnología para potenciar el crecimiento comercial de tu empresa."
   image="/og-home.webp"
 >
   <!-- <MetafiHero client:load /> -->
   <ScalifyHero />
-  <MetafiFeatures />
+  <CustomScrollEvent eventName="section_scroll_percent" sectionName="ScalifyFeatures">
+    <ScalifyFeatures />
+  </CustomScrollEvent>
   <ScalifyPricing client:load />
   <MetafiCta />
 </DefaultLayout>
