@@ -94,12 +94,7 @@ function PricingCard({ tier, featured }: { tier: PricingTier; featured?: boolean
         ))}
       </div>
 
-      <CustomClickEvent
-        eventName="pricing_cta_click"
-        location="pricing"
-        planName={tier.name}
-        planType={featured ? "featured" : "standard"}
-      >
+      <CustomClickEvent eventName="cta_click" location="pricing" planName={tier.name} planType={featured ? "featured" : "standard"}>
         <Button
           size="lg"
           className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "border-border hover:bg-muted text-foreground border-2 bg-transparent"}`}
