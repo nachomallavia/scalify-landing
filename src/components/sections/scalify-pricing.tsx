@@ -166,7 +166,7 @@ export default function ScalifyPricing() {
   };
 
   return (
-    <CustomTimeEvent eventName="scalify-pricing-time" location="scalify-pricing" interval={5000} threshold={0.5}>
+    <CustomTimeEvent eventName="scalify-pricing-time" location="scalify-pricing" interval={5000} threshold={0.5} fireOnce={true}>
       <section id="scalify-pricing" className="bg-background px-6 lg:px-0">
         <div className="container px-0 py-16 sm:py-20 md:px-6 md:py-28">
           <h2 className="text-foreground mx-auto mb-4 max-w-3xl text-balance text-center text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
