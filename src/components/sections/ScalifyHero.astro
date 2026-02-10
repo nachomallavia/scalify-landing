@@ -25,7 +25,12 @@ import { GridBackground } from "../ui/grid-background";
       </p>
       <div class="w-full flex justify-center lg:justify-start">
         <CustomClickEvent eventName="cta_click" location="hero" ctaText="AGENDAR REUNIÓN" ctaType="primary">
-          <FancyButton text="AGENDAR REUNIÓN" href="mailto:consultas@scalifyagencia.online" className="mt-4">
+          <FancyButton 
+            text="AGENDAR REUNIÓN" 
+            href="#" 
+            className="mt-4"
+            onclick="document.dispatchEvent(new CustomEvent('open-calendar-modal')); return false;"
+          >
             <svg
               slot="icon"
               class="w-7 h-7 text-white group-hover:text-[#27d456] transition-all duration-300 group-hover:scale-110 drop-shadow-lg"

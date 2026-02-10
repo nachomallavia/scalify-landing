@@ -103,18 +103,14 @@ const Navbar = () => {
             </Button>
           </a> */}
           <CustomClickEvent eventName="cta_click" location="navbar" ctaText="Agendar Reunión" ctaType="primary">
-            <a href="mailto:consultas@scalifyagencia.online" className={cn("hidden sm:block lg:block")}>
-              <Button
-                size="sm"
-                variant="default"
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                href="mailto:consultas@scalifyagencia.online"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Agendar Reunión
-              </Button>
-            </a>
+            <Button
+              size="sm"
+              variant="default"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground hidden sm:block lg:block"
+              onClick={() => document.dispatchEvent(new CustomEvent('open-calendar-modal'))}
+            >
+              Agendar Reunión
+            </Button>
           </CustomClickEvent>
 
           <div className="lg:block">
@@ -200,12 +196,18 @@ const Navbar = () => {
                       </a>
                     </CustomClickEvent>
 
-                    <CustomClickEvent eventName="cta_click" location="mobile_menu" ctaText="Get Started" ctaType="primary">
-                      <a href="/pricing" onClick={() => setIsMenuOpen(false)}>
-                        <Button className="w-full" size="sm" variant="default">
-                          Get Started
-                        </Button>
-                      </a>
+                    <CustomClickEvent eventName="cta_click" location="mobile_menu" ctaText="Agendar Reunión" ctaType="primary">
+                      <Button 
+                        className="w-full" 
+                        size="sm" 
+                        variant="default"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          document.dispatchEvent(new CustomEvent('open-calendar-modal'));
+                        }}
+                      >
+                        Agendar Reunión
+                      </Button>
                     </CustomClickEvent>
                   </div>
                 </nav>

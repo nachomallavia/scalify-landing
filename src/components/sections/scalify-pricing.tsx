@@ -98,9 +98,9 @@ function PricingCard({ tier, featured }: { tier: PricingTier; featured?: boolean
         <Button
           size="lg"
           className={`w-full ${featured ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "border-border hover:bg-muted text-foreground border-2 bg-transparent"}`}
-          asChild
+          onClick={() => document.dispatchEvent(new CustomEvent('open-calendar-modal'))}
         >
-          <a href={`mailto:consultas@scalifyagencia.online?subject=Consulta sobre plan ${tier.name}`}>AGENDAR REUNIÓN</a>
+          AGENDAR REUNIÓN
         </Button>
       </CustomClickEvent>
     </div>

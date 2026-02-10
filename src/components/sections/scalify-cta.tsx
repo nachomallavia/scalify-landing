@@ -22,11 +22,11 @@ const ScalifyCta = () => {
         <div className="mt-8 flex flex-col flex-wrap items-center justify-center gap-4 sm:flex-row">
           <CustomClickEvent eventName="cta_click" location="scalify-cta" ctaText="AGENDAR REUNIÓN" ctaType="primary">
             <Button
-              asChild
               size="lg"
               className="bg-accent hover:bg-accent/90 text-accent-foreground h-14 w-full rounded-[12px] px-8 text-lg font-semibold sm:w-auto"
+              onClick={() => document.dispatchEvent(new CustomEvent('open-calendar-modal'))}
             >
-              <a href="mailto:consultas@scalifyagencia.online">AGENDAR REUNIÓN</a>
+              AGENDAR REUNIÓN
             </Button>
           </CustomClickEvent>
         </div>

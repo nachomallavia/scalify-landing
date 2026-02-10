@@ -1,5 +1,6 @@
 ---
 import CustomScrollEvent from "@/components/analytics/headless/CustomScrollEvent.astro";
+import CalendarModal from "@/components/CalendarModal.astro";
 import ScalifyCta from "@/components/sections/scalify-cta";
 import ScalifyFeatures from "@/components/sections/scalify-features.astro";
 import ScalifyPricing from "@/components/sections/scalify-pricing";
@@ -13,12 +14,12 @@ import DefaultLayout from "@/layouts/DefaultLayout.astro";
   image="/og-home.webp"
 >
   <!-- <MetafiHero client:load /> -->
-
+  <CalendarModal />
   <ScalifyHero />
 
   <CustomScrollEvent eventName="section_scroll_percent" scrollSectionName="ScalifyFeatures">
     <ScalifyFeatures />
   </CustomScrollEvent>
   <ScalifyPricing client:load />
-  <ScalifyCta />
+  <ScalifyCta client:load />
 </DefaultLayout>
