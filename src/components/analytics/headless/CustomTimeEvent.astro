@@ -2,6 +2,7 @@
 /**
  * CustomTimeEvent Component
  * Tracks time spent with element visible
+ * Can fire once or repeatedly based on fireOnce prop
  */
 
 import { generateContextId, mergeEventData } from '@/lib/analytics/utils';
@@ -11,6 +12,7 @@ interface Props {
   eventData?: Record<string, any>;
   interval?: number;
   threshold?: number;
+  fireOnce?: boolean;
   [key: string]: any;
 }
 
@@ -19,6 +21,7 @@ const {
   eventData = {},
   interval = 10000, // Report every 10 seconds
   threshold = 0.5, // 50% visible
+  fireOnce = false, // Fire only once after interval
   ...additionalProps 
 } = Astro.props;
 
@@ -39,6 +42,7 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
   data-time-data={JSON.stringify(finalEventData)}
   data-time-interval={interval}
   data-time-threshold={threshold}
+  data-time-fire-once={fireOnce}
   data-tracker-id={trackerId}
 >
   <slot />
@@ -47,6 +51,7 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
 <script>
   /**
    * Time tracking with visibility detection
+   * Supports fireOnce mode for one-time milestone tracking
    */
   
   let observerInitialized = false;
@@ -55,6 +60,7 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
     totalTime: number;
     timer: ReturnType<typeof setInterval> | null;
     isVisible: boolean;
+    hasFired: boolean;
   }>();
 
   function reportTime(wrapper: Element) {
@@ -111,6 +117,7 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
       
       const interval = parseInt(wrapper.getAttribute('data-time-interval') || '10000');
       const threshold = parseFloat(wrapper.getAttribute('data-time-threshold') || '0.5');
+      const fireOnce = wrapper.getAttribute('data-time-fire-once') === 'true';
       
       // Initialize tracker
       trackers.set(wrapper, {
@@ -118,6 +125,7 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
         totalTime: 0,
         timer: null,
         isVisible: false,
+        hasFired: false,
       });
       
       const tracker = trackers.get(wrapper)!;
@@ -129,6 +137,11 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
             if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
               // Element became visible
               if (!tracker.isVisible) {
+                // Skip if fireOnce mode and already fired
+                if (fireOnce && tracker.hasFired) {
+                  return;
+                }
+                
                 tracker.isVisible = true;
                 tracker.startTime = Date.now();
                 
@@ -136,6 +149,17 @@ const finalEventData = mergeEventData(eventName, eventData, additionalProps, isT
                 tracker.timer = setInterval(() => {
                   updateTime(wrapper);
                   reportTime(wrapper);
+                  
+                  // If fireOnce mode, stop after first fire
+                  if (fireOnce) {
+                    tracker.hasFired = true;
+                    if (tracker.timer) {
+                      clearInterval(tracker.timer);
+                      tracker.timer = null;
+                    }
+                    tracker.isVisible = false;
+                    tracker.startTime = null;
+                  }
                 }, interval);
               }
             } else {

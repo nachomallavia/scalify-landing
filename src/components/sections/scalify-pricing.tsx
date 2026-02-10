@@ -3,7 +3,7 @@
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { CustomClickEvent } from "@/components/analytics/react";
+import { CustomClickEvent, CustomTimeEvent } from "@/components/analytics/react";
 import { Button } from "@/components/ui/button";
 
 type PricingTier = {
@@ -166,68 +166,70 @@ export default function ScalifyPricing() {
   };
 
   return (
-    <section id="scalify-pricing" className="bg-background px-6 lg:px-0">
-      <div className="container px-0 py-16 sm:py-20 md:px-6 md:py-28">
-        <h2 className="text-foreground mx-auto mb-4 max-w-3xl text-balance text-center text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-          PROPUESTA COMERCIAL
-        </h2>
+    <CustomTimeEvent eventName="scalify-pricing-time" location="scalify-pricing" interval={5000} threshold={0.5}>
+      <section id="scalify-pricing" className="bg-background px-6 lg:px-0">
+        <div className="container px-0 py-16 sm:py-20 md:px-6 md:py-28">
+          <h2 className="text-foreground mx-auto mb-4 max-w-3xl text-balance text-center text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
+            PROPUESTA COMERCIAL
+          </h2>
 
-        <p className="text-muted-foreground mx-auto mb-12 mt-4 max-w-2xl text-center text-base sm:text-lg">
-          Elige el plan que mejor se adapte a las necesidades de tu empresa
-        </p>
+          <p className="text-muted-foreground mx-auto mb-12 mt-4 max-w-2xl text-center text-base sm:text-lg">
+            Elige el plan que mejor se adapte a las necesidades de tu empresa
+          </p>
 
-        {/* Mobile carousel container with extra padding-top for the "Más Popular" pill */}
-        <div className="relative">
-          {/* Cards container */}
-          <div
-            ref={scrollContainerRef}
-            className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pb-8 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0 md:pb-12"
-          >
-            {PRICING_TIERS.map((tier, index) => (
-              <PricingCard key={index} tier={tier} featured={tier.name === "Grow"} />
-            ))}
-          </div>
-
-          {/* Navigation controls - buttons and dots together, only visible on mobile */}
-          <div className="mt-8 flex items-center justify-center gap-4 md:hidden">
-            {/* Previous button */}
-            <button
-              onClick={handlePrevious}
-              disabled={activeIndex === 0}
-              className="bg-card border-border hover:bg-muted rounded-full border p-2 shadow-md transition-all disabled:opacity-30"
-              aria-label="Previous plan"
+          {/* Mobile carousel container with extra padding-top for the "Más Popular" pill */}
+          <div className="relative">
+            {/* Cards container */}
+            <div
+              ref={scrollContainerRef}
+              className="scrollbar-hide -mx-6 flex snap-x snap-mandatory gap-6 overflow-visible overflow-x-auto px-6 pb-8 pt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-8 md:px-0 md:pb-12"
             >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-
-            {/* Dot indicators */}
-            <div className="flex gap-2">
-              {PRICING_TIERS.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleDotClick(index)}
-                  className={`h-2.5 w-2.5 rounded-full transition-all ${index === activeIndex ? "bg-accent w-8" : "bg-border hover:bg-border-light"}`}
-                  aria-label={`Go to plan ${index + 1}`}
-                />
+              {PRICING_TIERS.map((tier, index) => (
+                <PricingCard key={index} tier={tier} featured={tier.name === "Grow"} />
               ))}
             </div>
 
-            {/* Next button */}
-            <button
-              onClick={handleNext}
-              disabled={activeIndex === PRICING_TIERS.length - 1}
-              className="bg-card border-border hover:bg-muted rounded-full border p-2 shadow-md transition-all disabled:opacity-30"
-              aria-label="Next plan"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+            {/* Navigation controls - buttons and dots together, only visible on mobile */}
+            <div className="mt-8 flex items-center justify-center gap-4 md:hidden">
+              {/* Previous button */}
+              <button
+                onClick={handlePrevious}
+                disabled={activeIndex === 0}
+                className="bg-card border-border hover:bg-muted rounded-full border p-2 shadow-md transition-all disabled:opacity-30"
+                aria-label="Previous plan"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+
+              {/* Dot indicators */}
+              <div className="flex gap-2">
+                {PRICING_TIERS.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleDotClick(index)}
+                    className={`h-2.5 w-2.5 rounded-full transition-all ${index === activeIndex ? "bg-accent w-8" : "bg-border hover:bg-border-light"}`}
+                    aria-label={`Go to plan ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              {/* Next button */}
+              <button
+                onClick={handleNext}
+                disabled={activeIndex === PRICING_TIERS.length - 1}
+                className="bg-card border-border hover:bg-muted rounded-full border p-2 shadow-md transition-all disabled:opacity-30"
+                aria-label="Next plan"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <p className="text-muted-foreground text-sm">Todos los planes incluyen soporte dedicado y actualizaciones continuas</p>
           </div>
         </div>
-
-        <div className="mt-12 text-center">
-          <p className="text-muted-foreground text-sm">Todos los planes incluyen soporte dedicado y actualizaciones continuas</p>
-        </div>
-      </div>
-    </section>
+      </section>
+    </CustomTimeEvent>
   );
 }

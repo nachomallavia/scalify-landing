@@ -10,6 +10,7 @@
  * - Uses IntersectionObserver to detect visibility
  * - Only counts time when element is visible (>= threshold)
  * - Reports periodically (default every 10 seconds)
+ * - Can fire once or repeatedly (fireOnce prop)
  * - Automatically pauses/resumes as user scrolls
  * - Sends final report on page unload
  * 
@@ -37,12 +38,23 @@
  *   <section className="hero">...</section>
  * </CustomTimeEvent>
  * 
+ * Fire once (report only once after interval):
+ * <CustomTimeEvent 
+ *   eventName="milestone_10s_viewed"
+ *   interval={10000}
+ *   fireOnce={true}
+ * >
+ *   <section className="cta">...</section>
+ * </CustomTimeEvent>
+ * 
  * USE CASES:
  * - Videos: Track watch time without video API
- * - Articles: Measure reading engagement
+ * - Articles: Measure reading engagement (repeated reports)
  * - Products: Time spent viewing details
  * - Infographics: Attention to visual content
  * - Forms: Time spent filling (combined with CustomFormEvent)
+ * - Milestones: Track "viewed for 10s" once (fireOnce: true)
+ * - Engagement goals: One-time conversion tracking after duration
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -58,6 +70,7 @@ interface CustomTimeEventProps {
   eventData?: Record<string, any>;
   interval?: number;                    // Report interval in ms (default: 10000)
   threshold?: number;                   // Visibility threshold 0-1 (default: 0.5)
+  fireOnce?: boolean;                   // Fire only once after interval (default: false)
   children: ReactNode;
   [key: string]: any;
 }
@@ -71,6 +84,7 @@ export function CustomTimeEvent({
   eventData = {},
   interval = 10000,
   threshold = 0.5,
+  fireOnce = false,
   children,
   ...additionalProps
 }: CustomTimeEventProps) {
@@ -84,6 +98,7 @@ export function CustomTimeEvent({
     totalTime: 0,
     intervalTimer: null as ReturnType<typeof setInterval> | null,
     isVisible: false,
+    hasFired: false,                    // Track if event has already fired (for fireOnce mode)
   });
   
   // ============================================================================
@@ -166,6 +181,11 @@ export function CustomTimeEvent({
           if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
             // Element became visible
             if (!tracker.current.isVisible) {
+              // Skip if fireOnce mode and already fired
+              if (fireOnce && tracker.current.hasFired) {
+                return;
+              }
+              
               tracker.current.isVisible = true;
               tracker.current.startTime = Date.now();
               
@@ -173,6 +193,17 @@ export function CustomTimeEvent({
               tracker.current.intervalTimer = setInterval(() => {
                 updateTime();
                 reportTime();
+                
+                // If fireOnce mode, stop after first fire
+                if (fireOnce) {
+                  tracker.current.hasFired = true;
+                  if (tracker.current.intervalTimer) {
+                    clearInterval(tracker.current.intervalTimer);
+                    tracker.current.intervalTimer = null;
+                  }
+                  tracker.current.isVisible = false;
+                  tracker.current.startTime = null;
+                }
               }, interval);
             }
           } else {
@@ -205,7 +236,7 @@ export function CustomTimeEvent({
         clearInterval(tracker.current.intervalTimer);
       }
     };
-  }, [interval, threshold, finalEventData, isTestingMode]);
+  }, [interval, threshold, fireOnce, finalEventData, isTestingMode]);
   
   // ============================================================================
   // FINAL REPORT ON UNMOUNT
@@ -249,6 +280,7 @@ export function CustomTimeEvent({
       data-time-event={eventName}
       data-time-interval={interval}
       data-time-threshold={threshold}
+      data-time-fire-once={fireOnce}
       {...(trackerId && { 'data-tracker-id': trackerId })}
     >
       {children}
