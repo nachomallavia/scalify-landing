@@ -10,10 +10,22 @@ import FancyButton from "../elements/fancyButton.astro";
 import { GridBackground } from "../ui/grid-background";
 ---
 
-<section id="scalify-hero" class="bg-[var(--scalify-green)] dark:bg-[var(--scalify-deep-blue)] relative border-b min-h-[90vh] pb-20">
-  <div id="about-us" class="flex flex-col lg:flex-row w-full h-full relative z-10 pt-8">
-    <Image src={MktImage} alt="Scalify Hero" width={1920} class="lg:max-w-[66.66666666666666%] h-auto object-contain" />
-    <div class="container flex flex-col items-start justify-center px-4 lg:px-12 lg:pr-2 mb-4 pt-8 mx-auto gap-8">
+<section
+  id="scalify-hero"
+  class="bg-[var(--scalify-green)] dark:bg-[var(--scalify-deep-blue)] relative border-b min-h-[90vh] md:portrait:min-h-[80vh] pb-20 md:portrait:pb-12"
+>
+  <div id="about-us" class="flex flex-col lg:flex-row w-full h-full relative z-10 pt-8 md:portrait:pt-6">
+    <Image
+      src={MktImage}
+      alt="Scalify Hero"
+      widths={[480, 768, 1024, 1280, 1920]}
+      sizes="(max-width: 1023px) 100vw, 67vw"
+      class="lg:max-w-[66.66666666666666%] h-auto object-contain md:portrait:max-h-[75vh] md:portrait:object-cover md:portrait:object-top"
+      loading="eager"
+    />
+    <div
+      class="container flex flex-col lg:items-start justify-center px-4 lg:px-12 lg:pr-2 mb-4 md:portrait:mb-2 pt-8 md:portrait:pt-6 mx-auto gap-8 md:portrait:gap-4"
+    >
       <h1
         class="text-gray-900 dark:text-white text-balance text-3xl font-extrabold leading-none tracking-tight sm:text-4xl lg:text-5xl text-center lg:text-left"
       >
@@ -25,9 +37,9 @@ import { GridBackground } from "../ui/grid-background";
       </p>
       <div class="w-full flex justify-center lg:justify-start">
         <CustomClickEvent eventName="cta_click" location="hero" ctaText="AGENDAR REUNIÓN" ctaType="primary">
-          <FancyButton 
-            text="AGENDAR REUNIÓN" 
-            href="#" 
+          <FancyButton
+            text="AGENDAR REUNIÓN"
+            href="#"
             className="mt-4"
             onclick="document.dispatchEvent(new CustomEvent('open-calendar-modal')); return false;"
           >
