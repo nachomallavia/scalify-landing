@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/nunito";
 
 @plugin 'tailwindcss-animate';
 @plugin '@tailwindcss/typography';
@@ -51,7 +52,7 @@ html {
   --grid-border: var(--border);
   --grid-hover: oklch(0.97 0.01 270 / 0.7);
 
-  --font-inter: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-inter: "Nunito Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .dark {

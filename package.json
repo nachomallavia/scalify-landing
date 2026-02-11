@@ -19,6 +19,7 @@
     "@astrojs/rss": "^4.0.11",
     "@astrojs/sitemap": "^3.2.1",
     "@astrojs/vercel": "^9.0.4",
+    "@fontsource-variable/nunito": "^5.2.7",
     "@hookform/resolvers": "^3.9.1",
     "@nobie-org/tailwindcss-animate": "^1.0.0",
     "@radix-ui/react-accordion": "^1.2.2",
