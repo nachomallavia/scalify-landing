@@ -26,12 +26,20 @@ import { Button } from "@/components/ui/button";
       </svg>
     </button>
     <!-- Google Calendar Appointment Scheduling begin -->
-    <iframe
-      src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0X69eVp5WQvdUCBhHTOtwE7y4LRe7tfyjBPw4Ov0zdjX5nw0HSfImptuk2HBeYFS0qaxB5C4TA?gv=true"
-      style="border: 0"
-      width="100%"
-      height="600"
-      frameborder="0"></iframe>
+    <!-- Contenedor para el iframe (se carga dinámicamente con lazy loading) -->
+    <div 
+      id="calendar-iframe-container"
+      data-calendar-src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0X69eVp5WQvdUCBhHTOtwE7y4LRe7tfyjBPw4Ov0zdjX5nw0HSfImptuk2HBeYFS0qaxB5C4TA?gv=true"
+      class="w-full h-full relative"
+    >
+      <!-- Loader (visible mientras carga el iframe) -->
+      <div id="calendar-loader" class="absolute inset-0 flex items-center justify-center bg-white">
+        <div class="flex flex-col items-center gap-4">
+          <div class="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <p class="text-gray-600 text-sm">Cargando calendario...</p>
+        </div>
+      </div>
+    </div>
     <!-- end Google Calendar Appointment Scheduling -->
   </div>
 </div>
@@ -39,9 +47,45 @@ import { Button } from "@/components/ui/button";
 <script>
   const modal = document.getElementById("calendar-modal");
   const closeBtn = document.getElementById("close-calendar-modal");
+  let iframeLoaded = false;
+
+  function loadCalendarIframe() {
+    const container = document.getElementById("calendar-iframe-container");
+    const loader = document.getElementById("calendar-loader");
+    const calendarSrc = container?.dataset.calendarSrc;
+    
+    if (container && calendarSrc && !container.querySelector("iframe")) {
+      // Mostrar loader
+      if (loader) {
+        loader.classList.remove("hidden");
+      }
+      
+      const iframe = document.createElement("iframe");
+      iframe.src = calendarSrc;
+      iframe.style.border = "0";
+      iframe.width = "100%";
+      iframe.height = "600";
+      iframe.setAttribute("frameborder", "0");
+      
+      // Ocultar loader cuando el iframe termine de cargar
+      iframe.addEventListener("load", () => {
+        if (loader) {
+          loader.classList.add("hidden");
+        }
+      });
+      
+      container.appendChild(iframe);
+    }
+  }
 
   function openModal() {
     if (modal) {
+      // Lazy load iframe solo la primera vez
+      if (!iframeLoaded) {
+        loadCalendarIframe();
+        iframeLoaded = true;
+      }
+      
       modal.classList.remove("hidden");
       modal.classList.add("flex");
       document.body.style.overflow = "hidden";
